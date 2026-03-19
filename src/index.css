@@ -3,8 +3,22 @@
 @tailwind utilities;
 
 @layer base {
+  /* Prevent any element from blowing out the horizontal viewport */
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
+    overflow-x: hidden;
+    /* Ensure the body never exceeds the viewport width */
+    max-width: 100vw;
+  }
+
+  /* Box-sizing safety net for all elements */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    min-width: 0; /* Prevents flex/grid children from overflowing their container */
   }
 }
 
@@ -16,6 +30,9 @@
     transition-all duration-200 
     focus:outline-none focus:ring-2 focus:ring-offset-2 
     active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    /* Prevent buttons from ever overflowing */
+    max-width: 100%;
+    white-space: nowrap;
   }
   
   .btn-primary {
@@ -44,6 +61,9 @@
     @apply w-full px-4 py-3 border border-gray-300 rounded-xl 
     focus:ring-2 focus:ring-primary-500 focus:border-primary-500 
     outline-none transition-all placeholder-gray-400;
+    /* Inputs must never overflow their parent */
+    max-width: 100%;
+    min-width: 0;
   }
 
   /* ================= CARDS ================= */
@@ -51,6 +71,11 @@
   .card {
     @apply bg-white rounded-2xl shadow-sm border border-gray-200 p-4 
     hover:shadow-md transition-shadow duration-200;
+    /* Cards must clip their content — critical for table scroll containment */
+    overflow: hidden;
+    /* Never exceed the width of their parent */
+    max-width: 100%;
+    width: 100%;
   }
   
   .stat-card {
@@ -59,6 +84,9 @@
   
   .stat-value {
     @apply text-2xl font-bold text-gray-900;
+    /* Long values (e.g. RD$100,000) wrap instead of overflowing */
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
   
   .stat-label {
@@ -69,6 +97,10 @@
 
   .container-app {
     @apply max-w-6xl mx-auto px-4;
+    /* Guarantee the app container never exceeds the screen */
+    width: 100%;
+    max-width: min(72rem, 100vw);
+    overflow-x: hidden;
   }
 }
 
