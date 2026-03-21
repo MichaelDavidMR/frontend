@@ -10,14 +10,9 @@ const COMPANY_INFO = {
 
 export const generateReceiptPDF = (receipt, client) => {
   const doc = new jsPDF();
-
-  // Fuente base
   doc.setFont('helvetica', 'normal');
-
-  // Header
   doc.setFontSize(20);
   doc.text(COMPANY_INFO.name, 14, 20);
-
   doc.setFontSize(10);
   if (COMPANY_INFO.rnc) {
     doc.text(`RNC: ${COMPANY_INFO.rnc}`, 14, 28);
@@ -25,47 +20,34 @@ export const generateReceiptPDF = (receipt, client) => {
   doc.text(COMPANY_INFO.address, 14, 33);
   doc.text(`Tel: ${COMPANY_INFO.phone}`, 14, 38);
   doc.text(`Email: ${COMPANY_INFO.email}`, 14, 43);
-
-  // Receipt Info (right)
   doc.setFontSize(16);
   doc.setTextColor(37, 99, 235);
   doc.text(`RECIBO ${receipt.id}`, 140, 20);
-
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
-
   const date = new Date(receipt.createdAt).toLocaleString('es-DO', {
     dateStyle: 'medium',
     timeStyle: 'short'
   });
-
   doc.text(`Fecha: ${date}`, 140, 28);
   doc.text(`Pago: ${receipt.paymentMethod}`, 140, 33);
-
-  // Cliente
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
   doc.text('CLIENTE', 14, 55);
-
   doc.setFont(undefined, 'normal');
   doc.setFontSize(10);
-
   doc.text(`Nombre: ${client?.name || 'N/A'}`, 14, 62);
   doc.text(`Teléfono: ${client?.phone || 'N/A'}`, 14, 67);
-
   if (client?.address) {
     const address = doc.splitTextToSize(`Dirección: ${client.address}`, 90);
     doc.text(address, 14, 72);
   }
-
-  // Tabla
   const tableData = receipt.items.map(item => [
     item.description,
     item.qty,
     formatCurrency(item.unitPrice),
     formatCurrency(item.subtotal)
   ]);
-
   doc.autoTable({
     startY: 80,
     head: [['Descripción', 'Cant.', 'Precio Unit.', 'Subtotal']],
@@ -87,29 +69,21 @@ export const generateReceiptPDF = (receipt, client) => {
       3: { cellWidth: 35, halign: 'right' }
     }
   });
-
-  // Totales dinámicos (FIX REAL)
   let yPos = doc.lastAutoTable.finalY + 10;
-
   const addLine = (label, value, bold = false) => {
     doc.setFont(undefined, bold ? 'bold' : 'normal');
     doc.text(label, 120, yPos);
     doc.text(value, 195, yPos, { align: 'right' });
     yPos += 6;
   };
-
   doc.setFontSize(10);
-
   addLine('Subtotal:', formatCurrency(receipt.subtotal + receipt.discount));
-
   if (receipt.discount > 0) {
     addLine('Descuento:', `-${formatCurrency(receipt.discount)}`);
   }
-
   if (receipt.tax > 0) {
     addLine('ITBIS:', formatCurrency(receipt.tax));
   }
-
   doc.setFontSize(12);
   addLine('TOTAL:', formatCurrency(receipt.total), true);
 
