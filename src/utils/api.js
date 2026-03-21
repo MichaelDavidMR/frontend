@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Si existe la variable en .env la usa, si no, usa tu URL de Render por defecto
 const API_URL = import.meta.env.VITE_API_URL || 'https://backend-2c3d.onrender.com';
 
 const api = axios.create({
@@ -9,6 +8,27 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 });
+
+// ── Interceptor: adjunta el token JWT en cada petición ──────────
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ── Interceptor: si el token expiró, limpia sesión y recarga ────
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.reload(); // vuelve al login
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Clients
 export const getClients = () => api.get('/clients');
@@ -30,13 +50,37 @@ export const getStats = () => api.get('/stats');
 
 // Export
 export const exportCSV = (params = {}) => {
+  const token = localStorage.getItem('token');
   const queryString = new URLSearchParams(params).toString();
-  // Usamos API_URL directamente para que coincida con la base del backend
-  window.open(`${API_URL}/api/export?${queryString}`, '_blank');
+  // Para descargas usamos fetch con el token en el header
+  fetch(`${API_URL}/api/export?${queryString}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+    .then(res => res.blob())
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'receipts.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
 };
 
 export const downloadBackup = () => {
-  window.open(`${API_URL}/api/backup`, '_blank');
+  const token = localStorage.getItem('token');
+  fetch(`${API_URL}/api/backup`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+    .then(res => res.blob())
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
 };
 
 export const restoreBackup = (data) => api.post('/restore', data);
