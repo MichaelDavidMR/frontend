@@ -23,8 +23,9 @@ function App() {
         setChecking(false);
         return;
       }
+      const API_URL = import.meta.env.VITE_API_URL || 'https://backend-2c3d.onrender.com';
       try {
-        const res = await fetch('/api/auth/verify', {
+        const res = await fetch(`${API_URL}/api/auth/verify`, {
           headers: { Authorization: `Bearer ${stored}` },
         });
         if (!res.ok) {
