@@ -1,4 +1,4 @@
-// CreateReceipt.jsx — Logistics Pro style
+// CreateReceipt.jsx — mobile responsive
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getClients, getServices, createReceipt } from '../utils/api';
@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/pdfGenerator';
 function Section({ num, title, sub, children, active }) {
   return (
     <div className="card" style={{ opacity: active ? 1 : 0.55, transition: 'opacity 0.2s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1.125rem 1.25rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', flexWrap: 'wrap' }}>
         <div style={{
           width: 32, height: 32, borderRadius: '0.5rem', flexShrink: 0,
           background: active ? 'var(--primary)' : 'var(--surface-container)',
@@ -23,7 +23,7 @@ function Section({ num, title, sub, children, active }) {
           {sub && <p style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', marginTop: 1 }}>{sub}</p>}
         </div>
       </div>
-      <div style={{ padding: '1.25rem 1.5rem' }}>{children}</div>
+      <div style={{ padding: '1.125rem 1.25rem' }}>{children}</div>
     </div>
   );
 }
@@ -68,7 +68,7 @@ export default function CreateReceipt() {
 
   const addItem = () => {
     if (!newItem.description || !newItem.unitPrice) return;
-    const qty = parseInt(newItem.qty) || 1;
+    const qty   = parseInt(newItem.qty) || 1;
     const price = parseFloat(newItem.unitPrice);
     setItems([...items, { ...newItem, qty, unitPrice: price, subtotal: qty * price }]);
     setNewItem({ serviceId: '', description: '', qty: 1, unitPrice: '' });
@@ -89,8 +89,12 @@ export default function CreateReceipt() {
     try {
       setSubmitting(true);
       const res = await createReceipt({
-        clientId: selectedClient, items: items.map(i => ({ serviceId: i.serviceId || null, description: i.description, qty: i.qty, unitPrice: i.unitPrice })),
-        paymentMethod, notes, tax: parseFloat(tax) || 0, discount: parseFloat(discount) || 0, subtotal, total,
+        clientId: selectedClient,
+        items: items.map(i => ({ serviceId: i.serviceId || null, description: i.description, qty: i.qty, unitPrice: i.unitPrice })),
+        paymentMethod, notes,
+        tax: parseFloat(tax) || 0,
+        discount: parseFloat(discount) || 0,
+        subtotal, total,
       });
       navigate(`/receipts/${res.data.id}`);
     } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
@@ -101,10 +105,10 @@ export default function CreateReceipt() {
   const step = selectedClient ? (items.length > 0 ? 2 : 1) : 0;
 
   const payMethods = [
-    { key: 'Efectivo', icon: 'payments' },
-    { key: 'Tarjeta', icon: 'credit_card' },
+    { key: 'Efectivo',      icon: 'payments' },
+    { key: 'Tarjeta',       icon: 'credit_card' },
     { key: 'Transferencia', icon: 'account_balance' },
-    { key: 'Cheque', icon: 'description' },
+    { key: 'Cheque',        icon: 'description' },
   ];
 
   if (loading) return (
@@ -116,9 +120,70 @@ export default function CreateReceipt() {
 
   return (
     <>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-      <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: '2rem' }}>
+        /* ── Step tracker ── */
+        .cr-step-label { display: inline; }
+        .cr-step-sep   { flex: 1; height: 1.5px; margin: 0 0.5rem; transition: background 0.3s; }
+
+        /* ── Item add form ── */
+        .cr-item-grid {
+          display: grid;
+          grid-template-columns: 1fr 70px 110px 44px;
+          gap: 0.5rem;
+          align-items: flex-end;
+          margin-bottom: 0.875rem;
+        }
+
+        /* ── Payment methods ── */
+        .cr-pay-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+        }
+
+        /* ── Items table ── */
+        .cr-items-table-wrap {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          border-radius: 0.5rem;
+          border: 1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent);
+        }
+        .cr-items-table-wrap table { min-width: 420px; }
+
+        /* ── Discount / tax grid ── */
+        .cr-adj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+
+        @media (max-width: 639px) {
+          /* Step tracker: hide text labels, show only dots */
+          .cr-step-label { display: none; }
+          .cr-step-sep   { margin: 0 0.375rem; }
+
+          /* Item add: stack into 2 rows */
+          .cr-item-grid {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+          }
+          /* Description spans full width on mobile */
+          .cr-item-desc { grid-column: 1 / -1; }
+          /* Add button: align right */
+          .cr-item-add  { justify-self: end; align-self: flex-end; }
+
+          /* Payment: 2×2 on mobile */
+          .cr-pay-grid { grid-template-columns: repeat(2, 1fr); }
+
+          /* Adjustments: keep 2 cols (they're small enough) */
+        }
+
+        @media (max-width: 374px) {
+          /* Very small phones: adj grid stacks */
+          .cr-adj-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.125rem', paddingBottom: '2rem' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
@@ -131,38 +196,41 @@ export default function CreateReceipt() {
           </div>
         </div>
 
-        {/* Step track */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '0.75rem 1.5rem', background: 'var(--surface-container-lowest)', borderRadius: '0.5rem', border: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', boxShadow: 'var(--shadow-sm)' }}>
+        {/* Step tracker */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 1.25rem', background: 'var(--surface-container-lowest)', borderRadius: '0.5rem', border: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
           {['Seleccionar Cliente', 'Agregar Ítems', 'Pago & Total'].map((s, i) => {
             const done   = i < step;
             const active = i === step;
             const isLast = i === 2;
             return (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', flex: isLast ? 0 : 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div key={s} style={{ display: 'flex', alignItems: 'center', flex: isLast ? 0 : 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
                   <div style={{
-                    width: 26, height: 26, borderRadius: '50%',
+                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                     background: done ? 'var(--secondary)' : active ? 'var(--primary)' : 'var(--surface-container)',
                     color: done || active ? '#fff' : 'var(--on-surface-variant)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.75rem', fontWeight: 800, fontFamily: 'var(--font-headline)',
-                    flexShrink: 0, transition: 'all 0.2s',
+                    transition: 'all 0.2s',
                   }}>
                     {done
                       ? <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
                       : i + 1
                     }
                   </div>
-                  <span style={{
-                    fontSize: '0.75rem', fontWeight: active ? 800 : 500,
+                  <span className="cr-step-label" style={{
+                    fontSize: '0.72rem', fontWeight: active ? 800 : 500,
                     color: active ? 'var(--primary)' : done ? 'var(--secondary)' : 'var(--on-surface-variant)',
                     whiteSpace: 'nowrap', fontFamily: active ? 'var(--font-headline)' : 'var(--font-body)',
+                    overflow: 'hidden', textOverflow: 'ellipsis',
                     transition: 'all 0.2s',
                   }}>
                     {s}
                   </span>
                 </div>
-                {!isLast && <div style={{ flex: 1, height: 1.5, background: done ? 'var(--secondary)' : 'var(--outline-variant)', margin: '0 0.75rem', transition: 'background 0.3s' }} />}
+                {!isLast && (
+                  <div className="cr-step-sep" style={{ background: done ? 'var(--secondary)' : 'var(--outline-variant)' }} />
+                )}
               </div>
             );
           })}
@@ -183,6 +251,8 @@ export default function CreateReceipt() {
 
         {/* Step 2 — Items */}
         <Section num="2" title="Agregar Servicios / Ítems" sub="Añade los servicios o productos al recibo" active={!!selectedClient}>
+
+          {/* Quick service picker */}
           <div style={{ marginBottom: '0.875rem' }}>
             <FieldLabel>Servicio Rápido</FieldLabel>
             <select value={newItem.serviceId} onChange={e => handleServiceSelect(e.target.value)} className="input" disabled={!selectedClient}>
@@ -191,32 +261,54 @@ export default function CreateReceipt() {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 110px 44px', gap: '0.5rem', alignItems: 'flex-end', marginBottom: '0.875rem' }}>
-            <div>
+          {/* Item add form — responsive grid */}
+          <div className="cr-item-grid">
+            <div className="cr-item-desc">
               <FieldLabel>Descripción</FieldLabel>
-              <input type="text" value={newItem.description} onChange={e => setNewItem({ ...newItem, description: e.target.value })}
-                className="input" placeholder="Descripción del servicio" disabled={!selectedClient}
-                onKeyDown={e => e.key === 'Enter' && addItem()} />
+              <input
+                type="text" value={newItem.description}
+                onChange={e => setNewItem({ ...newItem, description: e.target.value })}
+                className="input" placeholder="Descripción del servicio"
+                disabled={!selectedClient}
+                onKeyDown={e => e.key === 'Enter' && addItem()}
+              />
             </div>
             <div>
               <FieldLabel>Cant</FieldLabel>
-              <input type="number" value={newItem.qty} onChange={e => setNewItem({ ...newItem, qty: e.target.value })}
-                className="input" placeholder="1" min="1" disabled={!selectedClient} />
+              <input
+                type="number" value={newItem.qty}
+                onChange={e => setNewItem({ ...newItem, qty: e.target.value })}
+                className="input" placeholder="1" min="1"
+                disabled={!selectedClient}
+                inputMode="numeric"
+              />
             </div>
             <div>
               <FieldLabel>Precio</FieldLabel>
-              <input type="number" value={newItem.unitPrice} onChange={e => setNewItem({ ...newItem, unitPrice: e.target.value })}
-                className="input" placeholder="0.00" min="0" step="0.01" disabled={!selectedClient}
-                onKeyDown={e => e.key === 'Enter' && addItem()} />
+              <input
+                type="number" value={newItem.unitPrice}
+                onChange={e => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                className="input" placeholder="0.00" min="0" step="0.01"
+                disabled={!selectedClient}
+                inputMode="decimal"
+                onKeyDown={e => e.key === 'Enter' && addItem()}
+              />
             </div>
-            <button onClick={addItem} disabled={!selectedClient || !newItem.description || !newItem.unitPrice}
-              className="btn-primary" style={{ height: 42, padding: 0, borderRadius: '0.5rem' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>add</span>
-            </button>
+            <div className="cr-item-add" style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                onClick={addItem}
+                disabled={!selectedClient || !newItem.description || !newItem.unitPrice}
+                className="btn-primary"
+                style={{ height: 42, width: 44, padding: 0, borderRadius: '0.5rem', flexShrink: 0 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>add</span>
+              </button>
+            </div>
           </div>
 
+          {/* Items table */}
           {items.length > 0 && (
-            <div style={{ borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
+            <div className="cr-items-table-wrap">
               <table className="table-base">
                 <thead>
                   <tr>
@@ -232,12 +324,15 @@ export default function CreateReceipt() {
                     <tr key={i} className="anim-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
                       <td style={{ fontWeight: 600 }}>{item.description}</td>
                       <td style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--on-surface-variant)' }}>{item.qty}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--on-surface-variant)' }}>{formatCurrency(item.unitPrice)}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(item.subtotal)}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--on-surface-variant)', whiteSpace: 'nowrap' }}>{formatCurrency(item.unitPrice)}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>{formatCurrency(item.subtotal)}</td>
                       <td>
-                        <button onClick={() => removeItem(i)} className="icon-btn" style={{ color: 'var(--on-surface-variant)' }}
+                        <button
+                          onClick={() => removeItem(i)} className="icon-btn"
+                          style={{ color: 'var(--on-surface-variant)' }}
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--on-surface-variant)'}>
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--on-surface-variant)'}
+                        >
                           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
                         </button>
                       </td>
@@ -252,21 +347,21 @@ export default function CreateReceipt() {
         {/* Step 3 — Payment */}
         <Section num="3" title="Método de Pago & Totales" sub="Configura el pago y ajustes finales" active={items.length > 0}>
 
-          {/* Payment method selector */}
           <FieldLabel>Método de Pago</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div className="cr-pay-grid">
             {payMethods.map(({ key, icon }) => (
               <button key={key} onClick={() => setPaymentMethod(key)} style={{
-                padding: '0.75rem 0.5rem',
+                padding: '0.75rem 0.375rem',
                 borderRadius: '0.5rem',
                 border: paymentMethod === key ? '2px solid var(--primary)' : '1px solid var(--outline-variant)',
                 background: paymentMethod === key ? 'color-mix(in srgb, var(--primary) 8%, transparent)' : 'var(--surface-container-lowest)',
                 color: paymentMethod === key ? 'var(--primary)' : 'var(--on-surface-variant)',
-                cursor: 'pointer', fontFamily: 'var(--font-body)',
-                fontSize: '0.75rem', fontWeight: paymentMethod === key ? 800 : 500,
+                cursor: 'pointer',
+                fontSize: '0.725rem', fontWeight: paymentMethod === key ? 800 : 500,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem',
                 transition: 'all 0.15s',
                 fontFamily: paymentMethod === key ? 'var(--font-headline)' : 'var(--font-body)',
+                WebkitTapHighlightColor: 'transparent',
               }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{icon}</span>
                 {key}
@@ -274,17 +369,19 @@ export default function CreateReceipt() {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+          {/* Discount & tax */}
+          <div className="cr-adj-grid">
             <div>
               <FieldLabel>Descuento (RD$)</FieldLabel>
-              <input type="number" value={discount} onChange={e => setDiscount(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" />
+              <input type="number" value={discount} onChange={e => setDiscount(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" inputMode="decimal" />
             </div>
             <div>
               <FieldLabel>ITBIS (RD$)</FieldLabel>
-              <input type="number" value={tax} onChange={e => setTax(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" />
+              <input type="number" value={tax} onChange={e => setTax(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" inputMode="decimal" />
             </div>
           </div>
 
+          {/* Notes */}
           <div style={{ marginBottom: '1.25rem' }}>
             <FieldLabel>Notas</FieldLabel>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows="2" placeholder="Notas adicionales..." />
@@ -320,13 +417,18 @@ export default function CreateReceipt() {
         </Section>
 
         {/* Submit */}
-        <button onClick={handleSubmit} disabled={submitting || !selectedClient || items.length === 0}
-          className="btn-primary" style={{ padding: '0.875rem 1rem', fontSize: '0.925rem', borderRadius: '0.5rem' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !selectedClient || items.length === 0}
+          className="btn-primary"
+          style={{ padding: '0.875rem 1rem', fontSize: '0.925rem', borderRadius: '0.5rem' }}
+        >
           {submitting
             ? <><span className="material-symbols-outlined" style={{ fontSize: 18, animation: 'spin 0.8s linear infinite' }}>autorenew</span> Generando Recibo...</>
             : <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>receipt_long</span> Generar Recibo</>
           }
         </button>
+
       </div>
     </>
   );
