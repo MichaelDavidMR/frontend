@@ -1,59 +1,117 @@
+// Dashboard.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
+  Chart as ChartJS, CategoryScale, LinearScale,
+  PointElement, LineElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js';
 import { getStats } from '../utils/api';
 import { formatCurrency } from '../utils/pdfGenerator';
- 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
- 
-/* ─── Toast ───────────────────────────────────────────────────── */
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+
+/* ─── Icons ─────────────────────────────────────────────────── */
+const Icons = {
+  Revenue: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>
+  ),
+  Clipboard: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+    </svg>
+  ),
+  Users: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
+  Grid: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </svg>
+  ),
+  Alert: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  ),
+};
+
+/* ─── Toast ─────────────────────────────────────────────────── */
 function Toast({ message, onClose }) {
   useEffect(() => {
     const t = setTimeout(onClose, 4000);
     return () => clearTimeout(t);
   }, [onClose]);
- 
+
   return (
-    <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-auto sm:w-max sm:left-1/2 sm:-translate-x-1/2 z-50 flex items-center gap-3 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-toast">
-      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <span className="flex-1">{message}</span>
-      <button onClick={onClose} className="opacity-70 hover:opacity-100 shrink-0">✕</button>
+    <div className="toast-wrap anim-toast">
+      <Icons.Alert />
+      <span style={{ flex: 1 }}>{message}</span>
+      <button onClick={onClose} className="toast-close">✕</button>
+      <style>{`
+        .toast-wrap {
+          position: fixed; bottom: 1.5rem; left: 50%;
+          transform: translateX(-50%);
+          z-index: 50;
+          display: flex; align-items: center; gap: 0.625rem;
+          background: #1A1917; color: #F2F1ED;
+          border: 1px solid rgba(220,38,38,0.4);
+          padding: 0.75rem 1rem; border-radius: 12px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+          font-size: 0.825rem; font-weight: 500;
+          min-width: 260px; max-width: calc(100vw - 2rem);
+          white-space: nowrap;
+        }
+        .toast-close {
+          background: none; border: none; cursor: pointer;
+          color: #6B6960; font-size: 0.75rem; padding: 2px;
+        }
+        .toast-close:hover { color: #F2F1ED; }
+      `}</style>
     </div>
   );
 }
- 
-/* ─── Skeletons ───────────────────────────────────────────────── */
+
+/* ─── Skeleton ──────────────────────────────────────────────── */
 function SkeletonCard() {
   return (
-    <div className="stat-card animate-pulse">
-      <div className="h-3 bg-gray-200 rounded w-16 mb-3" />
-      <div className="h-7 bg-gray-200 rounded w-24" />
+    <div className="stat-card">
+      <div className="skeleton" style={{ height: 10, width: 56, borderRadius: 4 }} />
+      <div className="skeleton" style={{ height: 28, width: 96, borderRadius: 6 }} />
     </div>
   );
 }
- 
-/* ─── Dashboard ───────────────────────────────────────────────── */
+
+/* ─── Payment badge ─────────────────────────────────────────── */
+function PayBadge({ method }) {
+  const styles = {
+    Efectivo:      'badge-green',
+    Tarjeta:       'badge-blue',
+    Transferencia: 'badge-purple',
+  };
+  return (
+    <span className={`badge ${styles[method] || 'badge-purple'}`}>{method}</span>
+  );
+}
+
+/* ─── Dashboard ─────────────────────────────────────────────── */
 function Dashboard() {
-  const [stats, setStats] = useState(null);
+  const [stats,   setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
- 
+  const [toast,   setToast]   = useState(null);
+
   const showToast = useCallback((msg) => setToast(msg), []);
   const hideToast = useCallback(() => setToast(null), []);
- 
+
   const loadStats = useCallback(async () => {
     try {
       setLoading(true);
@@ -66,177 +124,236 @@ function Dashboard() {
       setLoading(false);
     }
   }, [showToast]);
- 
+
   useEffect(() => { loadStats(); }, [loadStats]);
- 
+
+  /* Chart */
   const chartData = {
     labels: stats?.monthlyData.map(d => d.month) || [],
     datasets: [{
       label: 'Ingresos (RD$)',
-      data: stats?.monthlyData.map(d => d.total) || [],
-      borderColor: 'rgb(37, 99, 235)',
-      backgroundColor: 'rgba(37, 99, 235, 0.08)',
-      tension: 0.4,
-      fill: true,
-      pointRadius: 4,
-      pointHoverRadius: 6,
+      data:  stats?.monthlyData.map(d => d.total) || [],
+      borderColor: 'rgb(47, 84, 235)',
+      backgroundColor: (ctx) => {
+        const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
+        gradient.addColorStop(0, 'rgba(47,84,235,0.18)');
+        gradient.addColorStop(1, 'rgba(47,84,235,0)');
+        return gradient;
+      },
+      tension: 0.4, fill: true, pointRadius: 4, pointHoverRadius: 7,
+      pointBackgroundColor: '#fff', pointBorderColor: 'rgb(47,84,235)',
+      pointBorderWidth: 2,
     }],
   };
- 
+
   const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#18181A',
+        titleColor: '#9C9A93',
+        bodyColor: '#F2F1ED',
+        borderColor: '#2A2D35',
+        borderWidth: 1,
+        padding: 10,
+        displayColors: false,
+        callbacks: {
+          label: (ctx) => `  ${formatCurrency(ctx.raw)}`,
+        },
+      },
+    },
     scales: {
       y: {
         beginAtZero: true,
-        ticks: { callback: (v) => `RD$${v.toLocaleString()}`, maxTicksLimit: 5, font: { size: 11 } },
-        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: {
+          callback: (v) => `RD$${v >= 1000 ? (v/1000).toFixed(0)+'k' : v}`,
+          maxTicksLimit: 5,
+          font: { size: 11, family: 'JetBrains Mono' },
+          color: '#9C9A93',
+        },
+        grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+        border: { display: false },
       },
       x: {
-        ticks: { font: { size: 11 } },
+        ticks: { font: { size: 11 }, color: '#9C9A93' },
         grid: { display: false },
+        border: { display: false },
       },
     },
   };
- 
+
   const statItems = [
-    { label: 'Total Mes', value: formatCurrency(stats?.totalMonth  || 0), color: 'text-primary-600' },
-    { label: 'Trabajos',  value: stats?.totalJobs     || 0, color: 'text-gray-900' },
-    { label: 'Clientes',  value: stats?.totalClients  || 0, color: 'text-gray-900' },
-    { label: 'Servicios', value: stats?.totalServices || 0, color: 'text-gray-900' },
+    {
+      label: 'Total del Mes',
+      value: formatCurrency(stats?.totalMonth || 0),
+      icon: Icons.Revenue,
+      iconClass: 'icon-revenue',
+      color: '#2F54EB',
+      bg: 'rgba(47,84,235,0.08)',
+    },
+    {
+      label: 'Trabajos',
+      value: stats?.totalJobs || 0,
+      icon: Icons.Clipboard,
+      iconClass: 'icon-jobs',
+      color: '#16A34A',
+      bg: 'rgba(22,163,74,0.08)',
+    },
+    {
+      label: 'Clientes',
+      value: stats?.totalClients || 0,
+      icon: Icons.Users,
+      iconClass: 'icon-clients',
+      color: '#7C3AED',
+      bg: 'rgba(124,58,237,0.08)',
+    },
+    {
+      label: 'Servicios',
+      value: stats?.totalServices || 0,
+      icon: Icons.Grid,
+      iconClass: 'icon-services',
+      color: '#B45309',
+      bg: 'rgba(180,83,9,0.08)',
+    },
   ];
- 
+
   return (
     <>
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes toastIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .stat-card-animated { animation: fadeSlideUp 0.35s ease both; }
-        .animate-toast      { animation: toastIn 0.3s ease both; }
-        .fab {
-          position: fixed; bottom: 1.5rem; right: 1.5rem;
-          z-index: 40; display: none;
-        }
-        .table-scroll-wrap {
-          width: 100%;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-        @media (max-width: 640px) {
-          .fab { display: flex; }
-          .new-receipt-header-btn { display: none; }
-        }
-      `}</style>
- 
       <div className="space-y-5 pb-24 sm:pb-6" style={{ maxWidth: '100%', overflowX: 'hidden' }}>
- 
-        {/* ── Header ── */}
+
+        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-          <Link to="/receipts/new" className="btn-primary new-receipt-header-btn text-sm">
-            + Nuevo Recibo
+          <div>
+            <h2 className="page-title">Dashboard</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', marginTop: 2 }}>
+              {new Date().toLocaleDateString('es-DO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          <Link to="/receipts/new" className="btn-primary hide-on-mobile">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nuevo Recibo
           </Link>
         </div>
- 
-        {/* ── Stat Cards ── */}
+
+        {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {loading
             ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
             : statItems.map((item, i) => (
                 <div
                   key={item.label}
-                  className="stat-card stat-card-animated"
-                  style={{ animationDelay: `${i * 60}ms` }}
+                  className="stat-card anim-fade-up"
+                  style={{ animationDelay: `${i * 70}ms` }}
                 >
-                  <span className="stat-label text-xs sm:text-sm">{item.label}</span>
-                  <span className={`stat-value text-base sm:text-2xl font-bold ${item.color} break-words leading-tight`}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <span className="stat-label">{item.label}</span>
+                    <div style={{
+                      width: 34, height: 34, borderRadius: 10,
+                      background: item.bg, color: item.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <item.icon />
+                    </div>
+                  </div>
+                  <span className="stat-value" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', color: 'var(--text-1)' }}>
                     {item.value}
                   </span>
                 </div>
               ))
           }
         </div>
- 
-        {/* ── Chart ── */}
-        <div className="card" style={{ maxWidth: '100%' }}>
-          <h3 className="text-base sm:text-lg font-semibold mb-4">Ingresos Últimos 6 Meses</h3>
-          <div className="h-44 sm:h-64">
+
+        {/* Chart */}
+        <div className="card">
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', marginBottom: '1.25rem',
+          }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
+              Ingresos — Últimos 6 Meses
+            </h3>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              RD$
+            </span>
+          </div>
+          <div style={{ height: 200 }}>
             {loading
-              ? <div className="h-full bg-gray-100 rounded-lg animate-pulse" />
+              ? <div className="skeleton" style={{ height: '100%', borderRadius: 10 }} />
               : <Line data={chartData} options={chartOptions} />
             }
           </div>
         </div>
- 
-        {/* ── Recent Receipts ── */}
-        <div className="card" style={{ maxWidth: '100%' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base sm:text-lg font-semibold">Últimos Recibos</h3>
-            <Link to="/receipts" className="text-primary-600 hover:text-primary-700 text-sm whitespace-nowrap">
-              Ver todos →
+
+        {/* Recent Receipts */}
+        <div className="card">
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', marginBottom: '1.25rem',
+          }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
+              Últimos Recibos
+            </h3>
+            <Link to="/receipts" style={{
+              fontSize: '0.75rem', fontWeight: 600,
+              color: 'var(--primary)', textDecoration: 'none',
+              display: 'flex', alignItems: 'center', gap: '0.25rem',
+            }}>
+              Ver todos
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
           </div>
- 
+
           {!loading && stats?.lastReceipts?.length === 0 ? (
-            <p className="text-gray-500 text-center py-6 text-sm">No hay recibos registrados</p>
+            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧾</div>
+              <p style={{ color: 'var(--text-3)', fontSize: '0.875rem' }}>No hay recibos registrados</p>
+            </div>
           ) : (
             <div className="table-scroll-wrap">
-              <table style={{ width: '100%', tableLayout: 'fixed', minWidth: '360px' }}>
+              <table className="table-base" style={{ minWidth: 360 }}>
                 <colgroup>
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '27%' }} />
-                  <col style={{ width: '28%' }} />
-                  <col style={{ width: '27%' }} />
+                  <col style={{ width: '18%' }} /><col style={{ width: '25%' }} />
+                  <col style={{ width: '30%' }} /><col style={{ width: '27%' }} />
                 </colgroup>
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    {['ID', 'Fecha', 'Total', 'Pago'].map(h => (
-                      <th key={h} className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        {h}
-                      </th>
+                  <tr>
+                    {['ID', 'Fecha', 'Total', 'Método'].map(h => (
+                      <th key={h} style={{ textAlign: h === 'Total' ? 'right' : 'left' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loading
                     ? [...Array(4)].map((_, i) => (
-                        <tr key={i} className="border-b border-gray-100">
+                        <tr key={i}>
                           {[...Array(4)].map((_, j) => (
-                            <td key={j} className="py-3 px-2">
-                              <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                            </td>
+                            <td key={j}><div className="skeleton" style={{ height: 14 }} /></td>
                           ))}
                         </tr>
                       ))
-                    : stats?.lastReceipts?.map((receipt) => (
-                        <tr key={receipt.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-2">
-                            <Link to={`/receipts/${receipt.id}`} className="text-primary-600 hover:underline font-medium text-sm block truncate">
+                    : stats?.lastReceipts?.map((receipt, i) => (
+                        <tr key={receipt.id} className="anim-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+                          <td>
+                            <Link to={`/receipts/${receipt.id}`} style={{
+                              color: 'var(--primary)', fontWeight: 700,
+                              textDecoration: 'none', fontSize: '0.8rem',
+                              fontFamily: 'var(--font-mono)',
+                            }}>
                               {receipt.id}
                             </Link>
                           </td>
-                          <td className="py-3 px-2 text-sm text-gray-600">
+                          <td style={{ color: 'var(--text-2)', fontSize: '0.8rem' }}>
                             {new Date(receipt.createdAt).toLocaleDateString('es-DO')}
                           </td>
-                          <td className="py-3 px-2 font-semibold text-sm truncate">
+                          <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
                             {formatCurrency(receipt.total)}
                           </td>
-                          <td className="py-3 px-2">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              receipt.paymentMethod === 'Efectivo' ? 'bg-green-100 text-green-800' :
-                              receipt.paymentMethod === 'Tarjeta'  ? 'bg-blue-100 text-blue-800' :
-                              'bg-purple-100 text-purple-800'
-                            }`}>
-                              {receipt.paymentMethod}
-                            </span>
-                          </td>
+                          <td><PayBadge method={receipt.paymentMethod} /></td>
                         </tr>
                       ))
                   }
@@ -246,19 +363,20 @@ function Dashboard() {
           )}
         </div>
       </div>
- 
-      {/* ── FAB ── */}
+
+      {/* FAB */}
       <Link
         to="/receipts/new"
-        className="fab btn-primary items-center justify-center w-14 h-14 rounded-full shadow-lg text-2xl leading-none"
+        className="fab btn-primary items-center justify-center w-14 h-14 rounded-full"
         aria-label="Nuevo Recibo"
+        style={{ fontSize: '1.5rem', fontWeight: 300 }}
       >
         +
       </Link>
- 
+
       {toast && <Toast message={toast} onClose={hideToast} />}
     </>
   );
 }
- 
+
 export default Dashboard;
