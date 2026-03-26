@@ -1,21 +1,29 @@
-// Login.jsx
-import { useState } from 'react';
+// Login.jsx — with real public stats + mobile fixes
+import { useState, useEffect } from 'react';
 
-function Login({ onLogin }) {
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
-  const [shake,    setShake]    = useState(false);
-  const [showPass, setShowPass] = useState(false);
+export default function Login({ onLogin }) {
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState('');
+  const [showPass,    setShowPass]    = useState(false);
+  const [shake,       setShake]       = useState(false);
+  const [publicStats, setPublicStats] = useState(null);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'https://backend-2c3d.onrender.com';
+
+  // Fetch public stats for the branding panel
+  useEffect(() => {
+    fetch(`${API_URL}/api/public-stats`)
+      .then(r => r.json())
+      .then(d => setPublicStats(d))
+      .catch(() => {}); // silently fail — login still works
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    const API_URL = import.meta.env.VITE_API_URL || 'https://backend-2c3d.onrender.com';
-
     try {
       const res  = await fetch(`${API_URL}/api/auth/login`, {
         method:  'POST',
@@ -24,328 +32,342 @@ function Login({ onLogin }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Credenciales inválidas');
-
       localStorage.setItem('token', data.token);
       onLogin(data.token);
     } catch (err) {
       setError(err.message);
       setShake(true);
-      setTimeout(() => setShake(false), 600);
+      setTimeout(() => setShake(false), 500);
     } finally {
       setLoading(false);
     }
   };
 
+  const statItems = [
+    { value: publicStats?.totalClients,  label: 'Registrados',  suffix: 'Clientes'  },
+    { value: publicStats?.totalReceipts, label: 'Emitidos',     suffix: 'Recibos'   },
+    { value: publicStats?.totalServices, label: 'Disponibles',  suffix: 'Servicios' },
+  ];
+
   return (
-    <div className="login-root">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      background: 'var(--primary)',
+      fontFamily: 'var(--font-body)',
+    }}>
 
-        .login-root {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #0C0F18;
-          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-          overflow: hidden;
-          position: relative;
-        }
-
-        /* Geometric grid background */
-        .login-root::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(47,84,235,0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(47,84,235,0.06) 1px, transparent 1px);
-          background-size: 48px 48px;
-        }
-
-        /* Glow orbs */
-        .orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          pointer-events: none;
-        }
-        .orb-1 {
-          width: 480px; height: 480px;
-          top: -120px; left: -80px;
-          background: radial-gradient(circle, rgba(47,84,235,0.15), transparent 70%);
-          animation: drift1 8s ease-in-out infinite;
-        }
-        .orb-2 {
-          width: 360px; height: 360px;
-          bottom: -60px; right: -60px;
-          background: radial-gradient(circle, rgba(124,58,237,0.12), transparent 70%);
-          animation: drift2 10s ease-in-out infinite;
-        }
-        @keyframes drift1 {
-          0%,100% { transform: translate(0,0); }
-          50%      { transform: translate(30px, 20px); }
-        }
-        @keyframes drift2 {
-          0%,100% { transform: translate(0,0); }
-          50%      { transform: translate(-20px, -30px); }
-        }
-
-        .login-card {
-          position: relative;
-          z-index: 10;
-          width: 100%;
-          max-width: 420px;
-          margin: 0 1rem;
-        }
-
-        /* Logo ring */
-        .logo-wrap {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          margin-bottom: 2rem;
-        }
-        .logo-ring {
-          width: 72px; height: 72px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, rgba(47,84,235,0.2), rgba(124,58,237,0.2));
-          border: 1px solid rgba(47,84,235,0.35);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 1.25rem;
-          box-shadow: 0 0 0 8px rgba(47,84,235,0.06), 0 8px 24px rgba(0,0,0,0.3);
-          animation: breathe 3s ease-in-out infinite;
-        }
-        @keyframes breathe {
-          0%,100% { box-shadow: 0 0 0 8px rgba(47,84,235,0.06), 0 8px 24px rgba(0,0,0,0.3); }
-          50%      { box-shadow: 0 0 0 12px rgba(47,84,235,0.10), 0 8px 24px rgba(0,0,0,0.3); }
-        }
-
-        .login-title {
-          font-size: 1.625rem;
-          font-weight: 800;
-          color: #F2F1ED;
-          letter-spacing: -0.04em;
-          margin: 0;
-        }
-        .login-sub {
-          font-size: 0.825rem;
-          color: #5C6370;
-          margin-top: 0.25rem;
-          letter-spacing: 0.01em;
-        }
-
-        /* Form container */
-        .login-form-wrap {
-          background: #141720;
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 20px;
-          padding: 2rem;
-          box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(47,84,235,0.08);
-        }
-
-        .field-label {
-          display: block;
-          font-size: 0.75rem;
-          font-weight: 600;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          color: #6B7280;
-          margin-bottom: 0.5rem;
-        }
-
-        .login-input {
-          width: 100%;
-          padding: 0.75rem 1rem;
-          background: #1C2030;
-          border: 1.5px solid #2A2F40;
-          border-radius: 12px;
-          color: #F2F1ED;
-          font-family: 'Plus Jakarta Sans', sans-serif;
-          font-size: 0.875rem;
-          outline: none;
-          transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .login-input::placeholder { color: #3D4455; }
-        .login-input:focus {
-          border-color: rgba(47,84,235,0.7);
-          box-shadow: 0 0 0 3px rgba(47,84,235,0.15);
-        }
-
-        .pass-wrap {
-          position: relative;
-        }
-        .pass-toggle {
-          position: absolute;
-          right: 0.75rem;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #4B5260;
-          padding: 4px;
-          display: flex;
-          align-items: center;
-          transition: color 0.15s;
-        }
-        .pass-toggle:hover { color: #8B93A8; }
-
-        .error-box {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1rem;
-          background: rgba(220,38,38,0.1);
-          border: 1px solid rgba(220,38,38,0.25);
-          border-radius: 10px;
-          color: #F87171;
-          font-size: 0.825rem;
-          font-weight: 500;
-          margin-bottom: 1.25rem;
-          animation: errorIn 0.3s ease both;
-        }
-        @keyframes errorIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-
-        .login-btn {
-          width: 100%;
-          padding: 0.8rem;
-          border: none;
-          border-radius: 12px;
-          font-family: 'Plus Jakarta Sans', sans-serif;
-          font-size: 0.875rem;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-          color: white;
-          cursor: pointer;
-          background: linear-gradient(135deg, #2F54EB, #5B7FFF);
-          box-shadow: 0 4px 16px rgba(47,84,235,0.4);
-          transition: all 0.15s;
-          margin-top: 0.5rem;
-        }
-        .login-btn:hover:not(:disabled) {
-          background: linear-gradient(135deg, #1D3FCC, #4F6FEE);
-          box-shadow: 0 6px 20px rgba(47,84,235,0.5);
-          transform: translateY(-1px);
-        }
-        .login-btn:active:not(:disabled) { transform: scale(0.98); }
-        .login-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .login-footer {
-          text-align: center;
-          margin-top: 1.5rem;
-          font-size: 0.75rem;
-          color: #2A2F40;
-          font-family: 'JetBrains Mono', monospace;
-          letter-spacing: 0.02em;
-        }
-
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20%       { transform: translateX(-10px); }
-          40%       { transform: translateX(10px); }
-          60%       { transform: translateX(-6px); }
-          80%       { transform: translateX(6px); }
-        }
-        .shake { animation: shake 0.5s ease-in-out; }
-
-        .field-group { margin-bottom: 1.25rem; }
-        .field-group:last-of-type { margin-bottom: 0; }
-      `}</style>
-
-      <div className={`login-card ${shake ? 'shake' : ''}`}>
-        {/* Background orbs */}
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
+      {/* ── Left panel — branding (hidden on mobile) ── */}
+      <div className="login-brand-panel">
+        {/* Decorative circles */}
+        <div style={{
+          position: 'absolute', bottom: -120, left: -80,
+          width: 500, height: 500, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: 80, left: -180,
+          width: 400, height: 400, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', top: -60, right: -60,
+          width: 300, height: 300, borderRadius: '50%',
+          background: 'rgba(117,248,179,0.05)',
+          pointerEvents: 'none',
+        }} />
 
         {/* Logo */}
-        <div className="logo-wrap">
-          <div className="logo-ring">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(47,84,235,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '0.5rem',
+            background: 'var(--primary-container)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span className="material-symbols-outlined icon-filled"
+              style={{ color: 'var(--on-primary-container)', fontSize: 22 }}>receipt_long</span>
           </div>
-          <h1 className="login-title">Recibos ERP</h1>
-          <p className="login-sub">Taller de Reparaciones</p>
+          <span style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, fontSize: '1.25rem', color: '#fff' }}>
+            Recibos ERP
+          </span>
         </div>
 
-        {/* Card */}
-        <div className="login-form-wrap">
+        {/* Tagline */}
+        <div style={{ position: 'relative' }}>
+          <h1 style={{
+            fontFamily: 'var(--font-headline)', fontWeight: 800,
+            fontSize: '2.75rem', lineHeight: 1.1,
+            color: '#fff', marginBottom: '1rem',
+            letterSpacing: '-0.03em',
+          }}>
+            Gestión de Recibos<br />
+            <span style={{ color: 'var(--secondary-container)' }}>
+              Taller de Reparaciones
+            </span>
+          </h1>
+          <p style={{ fontSize: '0.9rem', color: 'var(--on-primary-container)', lineHeight: 1.6, maxWidth: 360 }}>
+            Administra clientes, servicios y facturación desde un solo panel de control profesional.
+          </p>
+
+          {/* Live stats row */}
+          <div style={{ display: 'flex', gap: '2rem', marginTop: '2.5rem' }}>
+            {statItems.map(({ value, label, suffix }) => (
+              <div key={label}>
+                <p style={{
+                  fontFamily: 'var(--font-headline)', fontWeight: 800,
+                  fontSize: '1.75rem', color: 'var(--secondary-fixed)', marginBottom: 2,
+                  minWidth: 40,
+                }}>
+                  {value === undefined || value === null
+                    ? <span className="stat-loading-bar" />
+                    : value}
+                </p>
+                <p style={{ fontSize: '0.65rem', color: 'var(--on-primary-container)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>
+                  {suffix}
+                </p>
+                <p style={{ fontSize: '0.6rem', color: 'var(--on-primary-container)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.5 }}>
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.75rem', color: 'var(--on-primary-container)', opacity: 0.5, position: 'relative' }}>
+          © {new Date().getFullYear()} Recibos ERP — Sistema de Gestión
+        </p>
+      </div>
+
+      {/* ── Right panel — form ── */}
+      <div className="login-form-panel">
+
+        {/* Mobile logo */}
+        <div className="login-mobile-logo">
+          <div style={{
+            width: 32, height: 32, borderRadius: '0.5rem',
+            background: 'var(--primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span className="material-symbols-outlined icon-filled" style={{ color: '#fff', fontSize: 18 }}>receipt_long</span>
+          </div>
+          <span style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, fontSize: '1.125rem', color: 'var(--primary)' }}>
+            Recibos ERP
+          </span>
+        </div>
+
+        <div style={{ width: '100%', maxWidth: 380 }}>
+          <h2 style={{
+            fontFamily: 'var(--font-headline)', fontWeight: 800,
+            fontSize: '1.5rem', color: 'var(--primary)', marginBottom: '0.375rem',
+          }}>
+            Iniciar Sesión
+          </h2>
+          <p style={{ fontSize: '0.825rem', color: 'var(--on-surface-variant)', marginBottom: '2rem' }}>
+            Ingresa tus credenciales de administrador
+          </p>
+
           {error && (
-            <div className="error-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.625rem',
+              padding: '0.75rem 1rem', borderRadius: '0.5rem',
+              background: 'var(--error-container)',
+              border: '1px solid color-mix(in srgb, var(--error) 20%, transparent)',
+              marginBottom: '1.25rem',
+              fontSize: '0.825rem', fontWeight: 500,
+              color: 'var(--on-error-container)',
+              animation: 'fadeIn 0.2s ease both',
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--error)' }}>error</span>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="field-group">
-              <label className="field-label">Correo electrónico</label>
-              <input
-                className="login-input"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="admin@empresa.com"
-                required
-                autoComplete="email"
-              />
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}
+            className={shake ? 'anim-shake' : ''}
+          >
+            <div>
+              <label style={{
+                display: 'block', fontSize: '0.7rem', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                color: 'var(--on-surface-variant)', marginBottom: '0.5rem',
+                fontFamily: 'var(--font-headline)',
+              }}>
+                Correo electrónico
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span className="material-symbols-outlined" style={{
+                  position: 'absolute', left: '0.75rem', top: '50%',
+                  transform: 'translateY(-50%)', fontSize: 18,
+                  color: 'var(--on-surface-variant)',
+                }}>mail</span>
+                <input
+                  type="email" value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="input" required placeholder="admin@empresa.com"
+                  style={{ paddingLeft: '2.5rem' }}
+                  autoComplete="email"
+                  inputMode="email"
+                />
+              </div>
             </div>
 
-            <div className="field-group">
-              <label className="field-label">Contraseña</label>
-              <div className="pass-wrap">
+            <div>
+              <label style={{
+                display: 'block', fontSize: '0.7rem', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                color: 'var(--on-surface-variant)', marginBottom: '0.5rem',
+                fontFamily: 'var(--font-headline)',
+              }}>
+                Contraseña
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span className="material-symbols-outlined" style={{
+                  position: 'absolute', left: '0.75rem', top: '50%',
+                  transform: 'translateY(-50%)', fontSize: 18,
+                  color: 'var(--on-surface-variant)',
+                }}>lock</span>
                 <input
-                  className="login-input"
-                  type={showPass ? 'text' : 'password'}
-                  value={password}
+                  type={showPass ? 'text' : 'password'} value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
+                  className="input" required placeholder="••••••••"
+                  style={{ paddingLeft: '2.5rem', paddingRight: '2.75rem' }}
                   autoComplete="current-password"
-                  style={{ paddingRight: '2.5rem' }}
                 />
-                <button type="button" className="pass-toggle" onClick={() => setShowPass(v => !v)} tabIndex={-1}>
-                  {showPass
-                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  }
+                <button
+                  type="button"
+                  onClick={() => setShowPass(v => !v)}
+                  style={{
+                    position: 'absolute', right: '0.75rem', top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--on-surface-variant)', padding: 2,
+                    display: 'flex', alignItems: 'center',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                  aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                    {showPass ? 'visibility_off' : 'visibility'}
+                  </span>
                 </button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="login-btn">
-              {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <svg style={{ animation: 'spin 0.8s linear infinite' }} width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3"/>
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                  </svg>
-                  Verificando...
-                </span>
-              ) : 'Iniciar Sesión →'}
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary"
+              style={{ padding: '0.75rem 1rem', marginTop: '0.25rem', fontSize: '0.875rem' }}
+            >
+              {loading
+                ? <><span className="material-symbols-outlined" style={{ fontSize: 18, animation: 'spin 0.8s linear infinite' }}>autorenew</span> Verificando...</>
+                : <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span> Iniciar Sesión</>
+              }
             </button>
           </form>
         </div>
-
-        <p className="login-footer">© {new Date().getFullYear()} Sistema de Recibos</p>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        /* ── Animations ── */
+        @keyframes spin   { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes shake  {
+          0%,100% { transform: translateX(0); }
+          20%     { transform: translateX(-8px); }
+          40%     { transform: translateX(8px); }
+          60%     { transform: translateX(-5px); }
+          80%     { transform: translateX(5px); }
+        }
+        @keyframes pulse  {
+          0%,100% { opacity: 0.4; }
+          50%     { opacity: 0.8; }
+        }
+        .anim-shake { animation: shake 0.5s ease; }
+
+        /* ── Stat loading bar ── */
+        .stat-loading-bar {
+          display: inline-block;
+          width: 40px;
+          height: 14px;
+          background: rgba(255,255,255,0.2);
+          border-radius: 4px;
+          animation: pulse 1.4s ease infinite;
+          vertical-align: middle;
+        }
+
+        /* ── Brand panel (desktop only) ── */
+        .login-brand-panel {
+          flex: 1;
+          display: none;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 3rem;
+          position: relative;
+          overflow: hidden;
+        }
+
+        /* ── Form panel ── */
+        .login-form-panel {
+          width: 100%;
+          background: var(--background);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem 1.5rem;
+          box-sizing: border-box;
+        }
+
+        /* ── Mobile logo (shown on mobile, hidden on desktop) ── */
+        .login-mobile-logo {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 2rem;
+        }
+
+        /* ── Desktop breakpoint ── */
+        @media (min-width: 1024px) {
+          .login-brand-panel {
+            display: flex;
+          }
+          .login-form-panel {
+            max-width: 480px;
+            padding: 2.5rem 3rem;
+          }
+          .login-mobile-logo {
+            display: none;
+          }
+        }
+
+        /* ── Tablet ── */
+        @media (min-width: 480px) and (max-width: 1023px) {
+          .login-form-panel {
+            padding: 2.5rem 2rem;
+          }
+        }
+
+        /* ── Small phone ── */
+        @media (max-width: 374px) {
+          .login-form-panel {
+            padding: 1.5rem 1rem;
+          }
+        }
+
+        /* ── Prevent zoom on input focus (iOS) ── */
+        @media (max-width: 767px) {
+          .login-form-panel input {
+            font-size: 16px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
-
-export default Login;

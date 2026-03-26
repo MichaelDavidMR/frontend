@@ -1,94 +1,89 @@
-// Clients.jsx
+// Clients.jsx — Logistics Pro style
 import { useState, useEffect, useCallback } from 'react';
 import { getClients, createClient } from '../utils/api';
 
-/* ─── Avatar ────────────────────────────────────────────────── */
-const AVATAR_COLORS = [
-  ['#DBEAFE','#1D4ED8'], ['#DCFCE7','#166534'], ['#EDE9FE','#5B21B6'],
-  ['#FEF3C7','#92400E'], ['#FFE4E6','#9F1239'], ['#E0F2FE','#0C4A6E'],
+function FieldLabel({ children }) {
+  return (
+    <label style={{ display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-headline)', marginBottom: '0.5rem' }}>
+      {children}
+    </label>
+  );
+}
+
+/* Avatar with initials */
+const COLORS = [
+  ['#d8e2ff','#224583'], ['#dcfce7','#166534'], ['#ede9fe','#5b21b6'],
+  ['#fef3c7','#92400e'], ['#ffe4e6','#9f1239'], ['#e0f2fe','#0c4a6e'],
 ];
-function Avatar({ name }) {
-  const initials = name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
-  const idx = name.charCodeAt(0) % AVATAR_COLORS.length;
-  const [bg, color] = AVATAR_COLORS[idx];
+function Avatar({ name, size = 32 }) {
+  const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const [bg, color] = COLORS[name.charCodeAt(0) % COLORS.length];
   return (
     <div style={{
-      width:32, height:32, borderRadius:10, flexShrink:0,
-      background:bg, color, fontWeight:800, fontSize:'0.7rem',
-      display:'flex', alignItems:'center', justifyContent:'center',
-      letterSpacing:'0.02em',
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: bg, color, fontWeight: 800, fontFamily: 'var(--font-headline)',
+      fontSize: size * 0.3 + 'px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      border: '2px solid color-mix(in srgb, var(--primary) 12%, transparent)',
     }}>
       {initials}
     </div>
   );
 }
 
-/* ─── Toast ─────────────────────────────────────────────────── */
-function Toast({ message, type='error', onClose }) {
+/* Toast */
+function Toast({ message, type = 'error', onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   const isSuccess = type === 'success';
   return (
-    <div style={{
-      position:'fixed', bottom:'1.5rem', left:'50%', transform:'translateX(-50%)',
-      zIndex:50, display:'flex', alignItems:'center', gap:'0.625rem',
-      background: isSuccess ? '#14532D' : '#1A1917',
-      color:'#F2F1ED',
-      border:`1px solid ${isSuccess ? 'rgba(22,163,74,0.5)' : 'rgba(220,38,38,0.4)'}`,
-      padding:'0.75rem 1rem', borderRadius:12,
-      boxShadow:'0 8px 32px rgba(0,0,0,0.2)',
-      fontSize:'0.825rem', fontWeight:500,
-      minWidth:260, maxWidth:'calc(100vw - 2rem)',
-      animation:'toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both',
+    <div className="anim-toast" style={{
+      position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+      zIndex: 50, display: 'flex', alignItems: 'center', gap: '0.625rem',
+      background: isSuccess ? 'var(--secondary)' : 'var(--primary)',
+      color: '#fff', padding: '0.75rem 1rem', borderRadius: '0.5rem',
+      boxShadow: '0 8px 32px rgba(0,27,68,0.25)',
+      fontSize: '0.825rem', fontWeight: 600,
+      minWidth: 260, maxWidth: 'calc(100vw - 2rem)',
     }}>
-      {isSuccess
-        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      }
-      <span style={{ flex:1 }}>{message}</span>
-      <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#6B6960', fontSize:'0.75rem' }}>✕</button>
-      <style>{`@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px) scale(.95)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}`}</style>
+      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+        {isSuccess ? 'check_circle' : 'error'}
+      </span>
+      <span style={{ flex: 1 }}>{message}</span>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem' }}>✕</button>
     </div>
   );
 }
 
-/* ─── Clients ───────────────────────────────────────────────── */
-function Clients() {
+export default function Clients() {
   const [clients,    setClients]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [showForm,   setShowForm]   = useState(false);
-  const [formData,   setFormData]   = useState({ name:'', phone:'', address:'', notes:'' });
+  const [formData,   setFormData]   = useState({ name: '', phone: '', address: '', notes: '' });
   const [submitting, setSubmitting] = useState(false);
   const [toast,      setToast]      = useState(null);
   const [errors,     setErrors]     = useState({});
   const [search,     setSearch]     = useState('');
 
-  const showToast = useCallback((msg, type='error') => setToast({ msg, type }), []);
+  const showToast = useCallback((msg, type = 'error') => setToast({ msg, type }), []);
   const hideToast = useCallback(() => setToast(null), []);
 
   const loadClients = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await getClients();
-      setClients(res.data);
-    } catch (err) {
-      console.error(err);
-      showToast('Error cargando clientes.');
-    } finally { setLoading(false); }
+    try { setLoading(true); const res = await getClients(); setClients(res.data); }
+    catch { showToast('Error cargando clientes.'); }
+    finally { setLoading(false); }
   }, [showToast]);
 
   useEffect(() => { loadClients(); }, [loadClients]);
 
   const handleChange = (field) => (e) => {
-    setFormData(prev => ({ ...prev, [field]: e.target.value }));
-    if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
+    setFormData(p => ({ ...p, [field]: e.target.value }));
+    if (errors[field]) setErrors(p => ({ ...p, [field]: undefined }));
   };
 
   const validate = () => {
     const e = {};
-    if (!formData.name.trim())  e.name  = 'El nombre es obligatorio';
-    if (!formData.phone.trim()) e.phone = 'El teléfono es obligatorio';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    if (!formData.name.trim())  e.name  = 'Nombre obligatorio';
+    if (!formData.phone.trim()) e.phone = 'Teléfono obligatorio';
+    setErrors(e); return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async () => {
@@ -96,19 +91,15 @@ function Clients() {
     try {
       setSubmitting(true);
       await createClient(formData);
-      setFormData({ name:'', phone:'', address:'', notes:'' });
-      setErrors({});
-      setShowForm(false);
+      setFormData({ name: '', phone: '', address: '', notes: '' });
+      setErrors({}); setShowForm(false);
       showToast('Cliente guardado correctamente', 'success');
       loadClients();
-    } catch (err) {
-      console.error(err);
-      showToast('Error creando cliente.');
-    } finally { setSubmitting(false); }
+    } catch { showToast('Error creando cliente.'); }
+    finally { setSubmitting(false); }
   };
 
   const toggleForm = () => { setShowForm(v => !v); setErrors({}); };
-
   const filtered = clients.filter(c =>
     !search.trim() ||
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -117,173 +108,144 @@ function Clients() {
 
   return (
     <>
-      <style>{`
-        .client-row td { transition: background 0.1s; }
-        .client-row:hover td { background: var(--bg-subtle) !important; }
-      `}</style>
-
-      <div className="space-y-5 pb-24 sm:pb-6" style={{ maxWidth:'100%', overflowX:'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <h2 className="page-title">Clientes</h2>
-            {!loading && (
-              <p style={{ fontSize:'0.8rem', color:'var(--text-3)', marginTop:2 }}>
-                {clients.length} cliente{clients.length !== 1 ? 's' : ''} registrado{clients.length !== 1 ? 's' : ''}
-              </p>
-            )}
+            <h2 className="page-title">Driver Management</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)', marginTop: 2 }}>
+              {!loading ? `${clients.length} cliente${clients.length !== 1 ? 's' : ''} registrado${clients.length !== 1 ? 's' : ''}` : '...'}
+            </p>
           </div>
-          <button onClick={toggleForm} className={showForm ? 'btn-secondary hide-on-mobile' : 'btn-primary hide-on-mobile'}>
-            {showForm
-              ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancelar</>
-              : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo Cliente</>
-            }
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={toggleForm} className={showForm ? 'btn-secondary hide-on-mobile' : 'btn-primary hide-on-mobile'}>
+              {showForm
+                ? <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span> Cancelar</>
+                : <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span> Nuevo Cliente</>
+              }
+            </button>
+          </div>
         </div>
 
         {/* Form */}
         {showForm && (
-          <div className="card anim-slide-down" style={{ padding:'1.5rem' }}>
-            <h3 style={{ fontWeight:800, fontSize:'0.95rem', letterSpacing:'-0.025em', marginBottom:'1.25rem', color:'var(--text-1)' }}>
-              Nuevo Cliente
-            </h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="card anim-slide-down">
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
+              <h3 className="section-title" style={{ fontSize: '1rem' }}>Registrar Nuevo Cliente</h3>
+            </div>
+            <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
-                  <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                    Nombre *
-                  </label>
+                  <FieldLabel>Nombre Completo *</FieldLabel>
                   <input type="text" value={formData.name} onChange={handleChange('name')}
                     className="input" placeholder="Nombre completo"
-                    style={{ borderColor: errors.name ? 'var(--red)' : undefined }}
-                  />
-                  {errors.name && <p style={{ fontSize:'0.75rem', color:'var(--red)', marginTop:'0.25rem' }}>{errors.name}</p>}
+                    style={{ borderColor: errors.name ? 'var(--error)' : undefined }} />
+                  {errors.name && <p style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '0.25rem', fontWeight: 600 }}>{errors.name}</p>}
                 </div>
                 <div>
-                  <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                    Teléfono *
-                  </label>
+                  <FieldLabel>Teléfono *</FieldLabel>
                   <input type="tel" value={formData.phone} onChange={handleChange('phone')}
                     className="input" placeholder="809-555-0000"
-                    style={{ fontFamily:'var(--font-mono)', borderColor: errors.phone ? 'var(--red)' : undefined }}
-                  />
-                  {errors.phone && <p style={{ fontSize:'0.75rem', color:'var(--red)', marginTop:'0.25rem' }}>{errors.phone}</p>}
+                    style={{ fontFamily: 'var(--font-mono)', borderColor: errors.phone ? 'var(--error)' : undefined }} />
+                  {errors.phone && <p style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '0.25rem', fontWeight: 600 }}>{errors.phone}</p>}
                 </div>
               </div>
               <div>
-                <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                  Dirección
-                </label>
-                <input type="text" value={formData.address} onChange={handleChange('address')}
-                  className="input" placeholder="Dirección (opcional)" />
+                <FieldLabel>Dirección</FieldLabel>
+                <input type="text" value={formData.address} onChange={handleChange('address')} className="input" placeholder="Dirección (opcional)" />
               </div>
               <div>
-                <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                  Notas
-                </label>
-                <textarea value={formData.notes} onChange={handleChange('notes')}
-                  className="input" rows="2" placeholder="Notas adicionales..." />
+                <FieldLabel>Notas</FieldLabel>
+                <textarea value={formData.notes} onChange={handleChange('notes')} className="input" rows="2" placeholder="Notas adicionales..." />
               </div>
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:'0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                 <button onClick={toggleForm} className="btn-secondary">Cancelar</button>
                 <button onClick={handleSubmit} disabled={submitting} className="btn-primary">
-                  {submitting ? 'Guardando...' : 'Guardar Cliente'}
+                  {submitting ? 'Guardando...' : <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span> Guardar Cliente</>}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Search + table */}
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
-          {/* Search bar */}
-          <div style={{
-            padding:'0.875rem 1.25rem',
-            borderBottom:'1px solid var(--border)',
-            display:'flex', alignItems:'center', gap:'0.625rem',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2.5" style={{ flexShrink:0 }}>
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por nombre o teléfono..."
-              style={{
-                border:'none', outline:'none', background:'none',
-                fontSize:'0.875rem', color:'var(--text-1)', flex:1,
-                fontFamily:'var(--font-sans)',
-              }}
-            />
-            {search && (
-              <button onClick={() => setSearch('')} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:2 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            )}
+        {/* Table — Fleet Driver Manifest style */}
+        <section className="card">
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <h3 className="section-title">Fleet Client Manifest</h3>
+              <p className="section-sub">Seguimiento y datos de todos los clientes</p>
+            </div>
+            {/* Search */}
+            <div style={{ position: 'relative', minWidth: 220 }}>
+              <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--on-surface-variant)' }}>search</span>
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                className="input-search" placeholder="Buscar cliente..."
+                style={{ paddingLeft: '2.5rem' }} />
+              {search && (
+                <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--on-surface-variant)', padding: 0, display: 'flex' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {!loading && filtered.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'3rem 1rem' }}>
-              <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>{clients.length === 0 ? '👥' : '🔍'}</div>
-              <p style={{ fontWeight:600, color:'var(--text-2)', marginBottom:'0.375rem' }}>
-                {clients.length === 0 ? 'Sin clientes registrados' : 'No se encontraron resultados'}
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 56, color: 'var(--outline-variant)', display: 'block', marginBottom: '0.75rem' }}>
+                {clients.length === 0 ? 'group' : 'search_off'}
+              </span>
+              <p style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--on-surface-variant)', marginBottom: '0.375rem' }}>
+                {clients.length === 0 ? 'Sin clientes registrados' : 'Sin resultados'}
               </p>
-              <p style={{ fontSize:'0.825rem', color:'var(--text-3)' }}>
-                {clients.length === 0
-                  ? 'Agrega tu primer cliente arriba'
-                  : 'Intenta con otro nombre o teléfono'
-                }
+              <p style={{ fontSize: '0.825rem', color: 'var(--outline)' }}>
+                {clients.length === 0 ? 'Agrega tu primer cliente arriba' : 'Intenta con otro nombre o teléfono'}
               </p>
             </div>
           ) : (
             <div className="table-scroll-wrap">
-              <table className="table-base" style={{ minWidth:380 }}>
-                <colgroup>
-                  <col style={{ width:'42%' }}/>
-                  <col style={{ width:'28%' }}/>
-                  <col style={{ width:'30%' }}/>
-                </colgroup>
+              <table className="table-base" style={{ minWidth: 500 }}>
                 <thead>
                   <tr>
-                    {['Cliente', 'Teléfono', 'Dirección'].map(h => (
-                      <th key={h} style={{ textAlign:'left', paddingLeft:'1.25rem', paddingRight:'1.25rem' }}>{h}</th>
-                    ))}
+                    <th>Driver ID</th>
+                    <th>Nombre del Operador</th>
+                    <th>Teléfono</th>
+                    <th>Dirección</th>
+                    <th style={{ textAlign: 'right' }}>Eficiencia</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading
                     ? [...Array(5)].map((_, i) => (
                         <tr key={i}>
-                          {[...Array(3)].map((_, j) => (
-                            <td key={j} style={{ padding:'0.875rem 1.25rem' }}>
-                              <div className="skeleton" style={{ height:14, width: j===0 ? 160 : j===1 ? 110 : 80 }} />
-                            </td>
+                          {[...Array(5)].map((_, j) => (
+                            <td key={j}><div className="skeleton" style={{ height: 14, width: j === 1 ? 180 : 80 }} /></td>
                           ))}
                         </tr>
                       ))
                     : filtered.map((c, i) => (
-                        <tr key={c.id} className="client-row anim-fade-up" style={{ animationDelay:`${i * 35}ms` }}>
-                          <td style={{ paddingLeft:'1.25rem', paddingRight:'1.25rem' }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'0.625rem' }}>
-                              <Avatar name={c.name} />
+                        <tr key={c.id} className="anim-fade-up" style={{ animationDelay: `${i * 35}ms` }}>
+                          <td className="table-id">#{c.id}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <Avatar name={c.name} size={32} />
                               <div>
-                                <p style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-1)' }}>{c.name}</p>
-                                <p style={{ fontFamily:'var(--font-mono)', fontSize:'0.65rem', color:'var(--text-3)', marginTop:1 }}>{c.id}</p>
+                                <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--on-surface)' }}>{c.name}</p>
+                                {c.notes && <p style={{ fontSize: '0.7rem', color: 'var(--on-surface-variant)' }}>{c.notes}</p>}
                               </div>
                             </div>
                           </td>
-                          <td style={{ paddingLeft:'1.25rem', paddingRight:'1.25rem' }}>
-                            <a href={`tel:${c.phone}`} style={{
-                              color:'var(--primary)', fontFamily:'var(--font-mono)',
-                              fontSize:'0.8rem', fontWeight:500, textDecoration:'none',
-                              display:'flex', alignItems:'center', gap:'0.25rem',
-                            }}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.68 3.49 2 2 0 0 1 3.67 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.08 6.08l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg>
+                          <td>
+                            <a href={`tel:${c.phone}`} style={{ fontFamily: 'var(--font-mono)', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>call</span>
                               {c.phone}
                             </a>
                           </td>
-                          <td style={{ paddingLeft:'1.25rem', paddingRight:'1.25rem', fontSize:'0.8rem', color:'var(--text-3)' }}>
-                            {c.address || '—'}
+                          <td style={{ color: 'var(--on-surface-variant)', fontSize: '0.825rem' }}>{c.address || '—'}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--primary)', fontSize: '0.875rem' }}>
+                              Active
+                            </span>
                           </td>
                         </tr>
                       ))
@@ -294,32 +256,20 @@ function Clients() {
           )}
 
           {!loading && filtered.length > 0 && (
-            <div style={{
-              padding:'0.625rem 1.25rem',
-              borderTop:'1px solid var(--border)',
-              background:'var(--bg-subtle)',
-              fontSize:'0.75rem', color:'var(--text-3)', textAlign:'right',
-              fontFamily:'var(--font-mono)',
-            }}>
+            <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', background: 'color-mix(in srgb, var(--surface-container-low) 60%, transparent)', fontSize: '0.75rem', color: 'var(--on-surface-variant)', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-headline)' }}>
               {filtered.length} de {clients.length} cliente{clients.length !== 1 ? 's' : ''}
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       {/* FAB */}
-      <button
-        onClick={toggleForm}
-        className="fab btn-primary items-center justify-center w-14 h-14 rounded-full"
-        aria-label="Nuevo Cliente"
-        style={{ fontSize: showForm ? '1rem' : '1.5rem', fontWeight:300 }}
-      >
-        {showForm ? '✕' : '+'}
+      <button onClick={toggleForm} className="fab btn-primary" aria-label="Nuevo Cliente"
+        style={{ width: 56, height: 56, borderRadius: '50%', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,27,68,0.3)' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{showForm ? 'close' : 'person_add'}</span>
       </button>
 
       {toast && <Toast message={toast.msg} type={toast.type} onClose={hideToast} />}
     </>
   );
 }
-
-export default Clients;

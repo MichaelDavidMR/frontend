@@ -1,43 +1,38 @@
-// ReceiptHistory.jsx
+// ReceiptHistory.jsx — Logistics Pro style
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getReceipts, getClients } from '../utils/api';
 import { formatCurrency } from '../utils/pdfGenerator';
 
-/* ─── Toast ─────────────────────────────────────────────────── */
 function Toast({ message, onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div style={{
-      position:'fixed', bottom:'1.5rem', left:'50%', transform:'translateX(-50%)',
-      zIndex:50, display:'flex', alignItems:'center', gap:'0.625rem',
-      background:'#1A1917', color:'#F2F1ED',
-      border:'1px solid rgba(220,38,38,0.4)',
-      padding:'0.75rem 1rem', borderRadius:12,
-      boxShadow:'0 8px 32px rgba(0,0,0,0.2)',
-      fontSize:'0.825rem', fontWeight:500,
-      minWidth:260, maxWidth:'calc(100vw - 2rem)',
-      animation:'toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both',
+    <div className="anim-toast" style={{
+      position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+      zIndex: 50, display: 'flex', alignItems: 'center', gap: '0.625rem',
+      background: 'var(--primary)', color: 'var(--on-primary)',
+      padding: '0.75rem 1rem', borderRadius: '0.5rem',
+      boxShadow: '0 8px 32px rgba(0,27,68,0.25)',
+      fontSize: '0.825rem', fontWeight: 600,
+      minWidth: 260, maxWidth: 'calc(100vw - 2rem)',
     }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span style={{ flex:1 }}>{message}</span>
-      <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#6B6960', fontSize:'0.75rem' }}>✕</button>
+      <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--error-container)' }}>error</span>
+      <span style={{ flex: 1 }}>{message}</span>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--on-primary-container)' }}>✕</button>
     </div>
   );
 }
 
-/* ─── Payment badge ─────────────────────────────────────────── */
 function PayBadge({ method }) {
-  const map = { Efectivo:'badge-green', Tarjeta:'badge-blue', Transferencia:'badge-purple', Cheque:'badge-amber' };
-  return <span className={`badge ${map[method] || 'badge-purple'}`}>{method}</span>;
+  const map = { Efectivo: 'badge-cash', Tarjeta: 'badge-card', Transferencia: 'badge-transfer', Cheque: 'badge-transfer' };
+  return <span className={`badge ${map[method] || 'badge-transfer'}`}><span className="badge-dot" />{method}</span>;
 }
 
-/* ─── ReceiptHistory ────────────────────────────────────────── */
-function ReceiptHistory() {
+export default function ReceiptHistory() {
   const [receipts,    setReceipts]    = useState([]);
   const [clients,     setClients]     = useState([]);
   const [loading,     setLoading]     = useState(true);
-  const [filters,     setFilters]     = useState({ from:'', to:'', clientId:'' });
+  const [filters,     setFilters]     = useState({ from: '', to: '', clientId: '' });
   const [toast,       setToast]       = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -50,126 +45,94 @@ function ReceiptHistory() {
       const [rr, cr] = await Promise.all([getReceipts(params), getClients()]);
       setReceipts(rr.data);
       setClients(cr.data);
-    } catch (err) {
-      console.error(err);
-      showToast('Error cargando datos. Intenta de nuevo.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { showToast('Error cargando datos.'); }
+    finally { setLoading(false); }
   }, [showToast]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const applyFilters = async () => {
-    const params = {};
-    if (filters.from)     params.from     = filters.from;
-    if (filters.to)       params.to       = filters.to;
-    if (filters.clientId) params.clientId = filters.clientId;
-    await loadData(params);
+    const p = {};
+    if (filters.from)     p.from     = filters.from;
+    if (filters.to)       p.to       = filters.to;
+    if (filters.clientId) p.clientId = filters.clientId;
+    await loadData(p);
     setFiltersOpen(false);
   };
 
-  const clearFilters = () => {
-    setFilters({ from:'', to:'', clientId:'' });
-    loadData();
-  };
-
-  const handleFilter = (field) => (e) =>
-    setFilters(prev => ({ ...prev, [field]: e.target.value }));
-
-  const getClientName = (clientId) =>
-    clients.find(c => c.id === clientId)?.name || '—';
-
+  const clearFilters = () => { setFilters({ from: '', to: '', clientId: '' }); loadData(); };
+  const handleFilter = (f) => (e) => setFilters(p => ({ ...p, [f]: e.target.value }));
+  const getClientName = (id) => clients.find(c => c.id === id)?.name || '—';
   const activeCount = [filters.from, filters.to, filters.clientId].filter(Boolean).length;
 
   return (
     <>
-      <style>{`
-        @keyframes toastIn { from{opacity:0;transform:translateY(16px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
-        .rh-filter-panel { animation: fadeSlideDown 0.22s ease both; }
-        @keyframes fadeSlideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-      `}</style>
-
-      <div className="space-y-5 pb-24 sm:pb-6" style={{ maxWidth:'100%', overflowX:'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <h2 className="page-title">Historial de Recibos</h2>
-            {!loading && (
-              <p style={{ fontSize:'0.8rem', color:'var(--text-3)', marginTop:2 }}>
-                {receipts.length} recibo{receipts.length !== 1 ? 's' : ''} encontrado{receipts.length !== 1 ? 's' : ''}
-              </p>
-            )}
+            <h2 className="page-title">Fleet Receipt Manifest</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)', marginTop: 2 }}>
+              Seguimiento y métricas de facturación en tiempo real
+            </p>
           </div>
-          <Link to="/receipts/new" className="btn-primary hide-on-mobile">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nuevo Recibo
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Link to="/receipts/new" className="btn-primary hide-on-mobile">
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+              Nuevo Recibo
+            </Link>
+            <button className="btn-secondary hide-on-mobile">
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+              Export CSV
+            </button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="card" style={{ padding:'1rem' }}>
+        {/* Filters card */}
+        <div className="card" style={{ padding: '1rem 1.5rem' }}>
           {/* Mobile toggle */}
-          <button
-            className="sm:hidden w-full flex items-center justify-between"
-            style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}
-            onClick={() => setFiltersOpen(v => !v)}
-          >
-            <span style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.825rem', fontWeight:600, color:'var(--text-2)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          <button className="sm:hidden w-full" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            onClick={() => setFiltersOpen(v => !v)}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem', fontWeight: 700, color: 'var(--primary)', fontFamily: 'var(--font-headline)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>filter_list</span>
               Filtros
               {activeCount > 0 && (
-                <span style={{
-                  display:'inline-flex', alignItems:'center', justifyContent:'center',
-                  width:18, height:18, borderRadius:'50%',
-                  background:'var(--primary)', color:'#fff',
-                  fontSize:'0.65rem', fontWeight:700,
-                }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--primary)', color: '#fff', fontSize: '0.65rem', fontWeight: 800 }}>
                   {activeCount}
                 </span>
               )}
             </span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2">
-              {filtersOpen
-                ? <polyline points="18 15 12 9 6 15"/>
-                : <polyline points="6 9 12 15 18 9"/>
-              }
-            </svg>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--on-surface-variant)' }}>
+              {filtersOpen ? 'expand_less' : 'expand_more'}
+            </span>
           </button>
 
-          {/* Filter fields */}
-          <div className={`${filtersOpen ? 'rh-filter-panel' : 'hidden'} sm:block`} style={{ marginTop: filtersOpen ? '0.75rem' : 0 }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className={`${filtersOpen ? 'anim-slide-down' : 'hidden'} sm:block`} style={{ marginTop: filtersOpen ? '0.875rem' : 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
               <div>
-                <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                  Desde
-                </label>
+                <label style={{ display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: '0.375rem', fontFamily: 'var(--font-headline)' }}>Desde</label>
                 <input type="date" value={filters.from} onChange={handleFilter('from')} className="input" />
               </div>
               <div>
-                <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                  Hasta
-                </label>
+                <label style={{ display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: '0.375rem', fontFamily: 'var(--font-headline)' }}>Hasta</label>
                 <input type="date" value={filters.to} onChange={handleFilter('to')} className="input" />
               </div>
               <div>
-                <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-                  Cliente
-                </label>
+                <label style={{ display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: '0.375rem', fontFamily: 'var(--font-headline)' }}>Cliente</label>
                 <select value={filters.clientId} onChange={handleFilter('clientId')} className="input">
                   <option value="">Todos los clientes</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              <div style={{ display:'flex', alignItems:'flex-end', gap:'0.5rem' }}>
-                <button onClick={applyFilters} className="btn-primary" style={{ flex:1 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={applyFilters} className="btn-primary" style={{ flex: 1, fontSize: '0.8rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>search</span>
                   Filtrar
                 </button>
                 {activeCount > 0 && (
-                  <button onClick={clearFilters} className="btn-secondary" title="Limpiar" style={{ padding:'0.625rem 0.75rem' }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <button onClick={clearFilters} className="btn-secondary" style={{ padding: '0.5rem 0.625rem' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                   </button>
                 )}
               </div>
@@ -177,39 +140,38 @@ function ReceiptHistory() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
+        {/* Table — Fleet Driver Manifest style */}
+        <section className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
+            <div>
+              <h3 className="section-title">Historial de Recibos</h3>
+              <p className="section-sub">{!loading ? `${receipts.length} recibo${receipts.length !== 1 ? 's' : ''} encontrado${receipts.length !== 1 ? 's' : ''}` : 'Cargando...'}</p>
+            </div>
+          </div>
+
           {!loading && receipts.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'3rem 1rem' }}>
-              <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>🔍</div>
-              <p style={{ fontWeight:600, color:'var(--text-2)', marginBottom:'0.375rem' }}>
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 56, color: 'var(--outline-variant)', display: 'block', marginBottom: '0.75rem' }}>receipt_long</span>
+              <p style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--on-surface-variant)', marginBottom: '0.375rem' }}>
                 No se encontraron recibos
               </p>
               {activeCount > 0 && (
-                <p style={{ fontSize:'0.825rem', color:'var(--text-3)' }}>
-                  Intenta{' '}
-                  <button onClick={clearFilters} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--primary)', fontWeight:600 }}>
-                    limpiar los filtros
-                  </button>
-                </p>
+                <button onClick={clearFilters} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--secondary)', fontWeight: 700, fontSize: '0.825rem' }}>
+                  Limpiar filtros
+                </button>
               )}
             </div>
           ) : (
             <div className="table-scroll-wrap">
-              <table className="table-base" style={{ minWidth:480 }}>
-                <colgroup>
-                  <col style={{ width:'11%' }}/>
-                  <col style={{ width:'16%' }}/>
-                  <col style={{ width:'21%' }}/>
-                  <col style={{ width:'10%' }}/>
-                  <col style={{ width:'22%' }}/>
-                  <col style={{ width:'20%' }}/>
-                </colgroup>
+              <table className="table-base" style={{ minWidth: 600 }}>
                 <thead>
                   <tr>
-                    {[['ID','left'],['Fecha','left'],['Cliente','left'],['Items','center'],['Total','right'],['Pago','left']].map(([h, a]) => (
-                      <th key={h} style={{ textAlign: a, paddingLeft:'1rem', paddingRight:'1rem' }}>{h}</th>
-                    ))}
+                    <th>ID Recibo</th>
+                    <th>Operador / Cliente</th>
+                    <th>Servicios</th>
+                    <th>Estado</th>
+                    <th>Progreso</th>
+                    <th style={{ textAlign: 'right' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,43 +179,50 @@ function ReceiptHistory() {
                     ? [...Array(6)].map((_, i) => (
                         <tr key={i}>
                           {[...Array(6)].map((_, j) => (
-                            <td key={j} style={{ padding:'0.875rem 1rem' }}>
-                              <div className="skeleton" style={{ height:13 }} />
-                            </td>
+                            <td key={j}><div className="skeleton" style={{ height: 14, width: j === 1 ? 160 : 80 }} /></td>
                           ))}
                         </tr>
                       ))
                     : receipts.map((r, i) => (
-                        <tr key={r.id} className="anim-fade-up" style={{ animationDelay:`${i * 30}ms` }}>
-                          <td style={{ paddingLeft:'1rem', paddingRight:'1rem' }}>
-                            <Link to={`/receipts/${r.id}`} style={{
-                              color:'var(--primary)', fontWeight:700,
-                              fontFamily:'var(--font-mono)', fontSize:'0.775rem',
-                              textDecoration:'none',
-                            }}>
-                              {r.id}
-                            </Link>
+                        <tr key={r.id} className="anim-fade-up" style={{ animationDelay: `${i * 30}ms` }}>
+                          <td>
+                            <Link to={`/receipts/${r.id}`} className="table-id" style={{ textDecoration: 'none' }}>#{r.id}</Link>
                           </td>
-                          <td style={{ paddingLeft:'1rem', paddingRight:'1rem', fontSize:'0.8rem' }}>
-                            {new Date(r.createdAt).toLocaleDateString('es-DO')}
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                              <div style={{
+                                width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                                background: 'var(--surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--on-surface-variant)' }}>person</span>
+                              </div>
+                              <div>
+                                <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--on-surface)' }}>{getClientName(r.clientId)}</p>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>
+                                  {new Date(r.createdAt).toLocaleDateString('es-DO')}
+                                </p>
+                              </div>
+                            </div>
                           </td>
-                          <td style={{ paddingLeft:'1rem', paddingRight:'1rem', fontWeight:500, color:'var(--text-1)', fontSize:'0.85rem' }}>
-                            {getClientName(r.clientId)}
+                          <td style={{ color: 'var(--on-surface-variant)', fontSize: '0.875rem' }}>
+                            {r.items.length} ítem{r.items.length !== 1 ? 's' : ''}
                           </td>
-                          <td style={{ paddingLeft:'1rem', paddingRight:'1rem', textAlign:'center' }}>
-                            <span style={{
-                              display:'inline-flex', alignItems:'center', justifyContent:'center',
-                              width:22, height:22, borderRadius:'50%',
-                              background:'var(--bg-subtle)', color:'var(--text-2)',
-                              fontSize:'0.7rem', fontWeight:700,
-                            }}>
-                              {r.items.length}
-                            </span>
+                          <td>
+                            {r.anulled
+                              ? <span className="badge badge-delayed"><span className="badge-dot" />Anulado</span>
+                              : <span className="badge badge-active"><span className="badge-dot" />Activo</span>
+                            }
                           </td>
-                          <td style={{ paddingLeft:'1rem', paddingRight:'1rem', textAlign:'right', fontWeight:700, fontFamily:'var(--font-mono)', fontSize:'0.875rem', color:'var(--text-1)' }}>
-                            {formatCurrency(r.total)}
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <div className="progress-wrap">
+                                <div className="progress-fill done" style={{ width: '100%' }} />
+                              </div>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--secondary)', whiteSpace: 'nowrap' }}>100%</span>
+                            </div>
                           </td>
-                          <td style={{ paddingLeft:'1rem', paddingRight:'1rem' }}>
+                          <td style={{ textAlign: 'right' }}>
+                            <p style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(r.total)}</p>
                             <PayBadge method={r.paymentMethod} />
                           </td>
                         </tr>
@@ -265,26 +234,16 @@ function ReceiptHistory() {
           )}
 
           {!loading && receipts.length > 0 && (
-            <div style={{
-              padding:'0.625rem 1rem',
-              borderTop:'1px solid var(--border)',
-              background:'var(--bg-subtle)',
-              fontSize:'0.75rem', color:'var(--text-3)', textAlign:'right',
-              fontFamily:'var(--font-mono)',
-            }}>
-              {receipts.length} recibo{receipts.length !== 1 ? 's' : ''}
+            <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', background: 'color-mix(in srgb, var(--surface-container-low) 60%, transparent)', fontSize: '0.75rem', color: 'var(--on-surface-variant)', textAlign: 'right', fontWeight: 600 }}>
+              {receipts.length} recibo{receipts.length !== 1 ? 's' : ''} en total
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       {/* FAB */}
-      <Link
-        to="/receipts/new"
-        className="fab btn-primary items-center justify-center w-14 h-14 rounded-full"
-        aria-label="Nuevo Recibo"
-        style={{ fontSize:'1.5rem', fontWeight:300 }}
-      >
+      <Link to="/receipts/new" className="fab btn-primary" aria-label="Nuevo Recibo"
+        style={{ width: 56, height: 56, borderRadius: '50%', fontSize: '1.5rem', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,27,68,0.3)' }}>
         +
       </Link>
 
@@ -292,5 +251,3 @@ function ReceiptHistory() {
     </>
   );
 }
-
-export default ReceiptHistory;

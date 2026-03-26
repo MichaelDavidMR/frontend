@@ -1,85 +1,42 @@
-// CreateReceipt.jsx
+// CreateReceipt.jsx — Logistics Pro style
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getClients, getServices, createReceipt } from '../utils/api';
 import { formatCurrency } from '../utils/pdfGenerator';
 
-/* ─── Step indicator ────────────────────────────────────────── */
-function StepBar({ current }) {
-  const steps = ['Cliente', 'Items', 'Pago'];
+function Section({ num, title, sub, children, active }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:0, marginBottom:'1.5rem' }}>
-      {steps.map((s, i) => {
-        const done    = i < current;
-        const active  = i === current;
-        const isLast  = i === steps.length - 1;
-        return (
-          <div key={s} style={{ display:'flex', alignItems:'center', flex: isLast ? 0 : 1 }}>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-              <div style={{
-                width:28, height:28, borderRadius:'50%',
-                background: done ? 'var(--primary)' : active ? 'var(--primary-light)' : 'var(--bg-subtle)',
-                border: active ? '2px solid var(--primary)' : done ? 'none' : '1.5px solid var(--border)',
-                color: done ? '#fff' : active ? 'var(--primary)' : 'var(--text-3)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:'0.7rem', fontWeight:800,
-                transition:'all 0.2s',
-              }}>
-                {done
-                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                  : i + 1
-                }
-              </div>
-              <span style={{ fontSize:'0.65rem', fontWeight: active ? 700 : 500, color: active ? 'var(--primary)' : 'var(--text-3)', whiteSpace:'nowrap' }}>
-                {s}
-              </span>
-            </div>
-            {!isLast && (
-              <div style={{
-                flex:1, height:1.5,
-                background: done ? 'var(--primary)' : 'var(--border)',
-                margin:'0 6px', marginBottom:20,
-                transition:'background 0.3s',
-              }} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─── Section card ──────────────────────────────────────────── */
-function Section({ number, title, subtitle, children, active }) {
-  return (
-    <div className="card" style={{
-      opacity: active ? 1 : 0.6,
-      transition:'opacity 0.2s',
-      padding: '1.5rem',
-    }}>
-      <div style={{ display:'flex', alignItems:'center', gap:'0.875rem', marginBottom:'1.25rem' }}>
+    <div className="card" style={{ opacity: active ? 1 : 0.55, transition: 'opacity 0.2s' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
         <div style={{
-          width:32, height:32, borderRadius:10, flexShrink:0,
-          background: active ? 'var(--primary)' : 'var(--bg-subtle)',
-          color: active ? '#fff' : 'var(--text-3)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:'0.75rem', fontWeight:800,
-          transition:'all 0.2s',
+          width: 32, height: 32, borderRadius: '0.5rem', flexShrink: 0,
+          background: active ? 'var(--primary)' : 'var(--surface-container)',
+          color: active ? '#fff' : 'var(--on-surface-variant)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-headline)', fontWeight: 800, fontSize: '0.8rem',
+          transition: 'all 0.2s',
         }}>
-          {number}
+          {num}
         </div>
         <div>
-          <h3 style={{ fontWeight:800, fontSize:'0.95rem', letterSpacing:'-0.025em', color:'var(--text-1)' }}>{title}</h3>
-          {subtitle && <p style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:1 }}>{subtitle}</p>}
+          <h3 style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, fontSize: '0.9rem', color: 'var(--primary)' }}>{title}</h3>
+          {sub && <p style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', marginTop: 1 }}>{sub}</p>}
         </div>
       </div>
-      {children}
+      <div style={{ padding: '1.25rem 1.5rem' }}>{children}</div>
     </div>
   );
 }
 
-/* ─── CreateReceipt ─────────────────────────────────────────── */
-function CreateReceipt() {
+function FieldLabel({ children }) {
+  return (
+    <label style={{ display: 'block', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-headline)', marginBottom: '0.5rem' }}>
+      {children}
+    </label>
+  );
+}
+
+export default function CreateReceipt() {
   const navigate = useNavigate();
   const [clients,    setClients]    = useState([]);
   const [services,   setServices]   = useState([]);
@@ -92,31 +49,29 @@ function CreateReceipt() {
   const [notes,          setNotes]          = useState('');
   const [tax,            setTax]            = useState(0);
   const [discount,       setDiscount]       = useState(0);
-
-  const [newItem, setNewItem] = useState({ serviceId:'', description:'', qty:1, unitPrice:'' });
+  const [newItem,        setNewItem]        = useState({ serviceId: '', description: '', qty: 1, unitPrice: '' });
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const [cr, sr] = await Promise.all([getClients(), getServices()]);
-      setClients(cr.data);
-      setServices(sr.data);
+      setClients(cr.data); setServices(sr.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
-  const handleServiceSelect = (serviceId) => {
-    const s = services.find(s => s.id === serviceId);
-    if (s) setNewItem({ serviceId:s.id, description:s.name, qty:1, unitPrice:s.price.toString() });
+  const handleServiceSelect = (id) => {
+    const s = services.find(s => s.id === id);
+    if (s) setNewItem({ serviceId: s.id, description: s.name, qty: 1, unitPrice: s.price.toString() });
   };
 
   const addItem = () => {
     if (!newItem.description || !newItem.unitPrice) return;
-    const qty   = parseInt(newItem.qty) || 1;
+    const qty = parseInt(newItem.qty) || 1;
     const price = parseFloat(newItem.unitPrice);
-    setItems([...items, { ...newItem, qty, unitPrice:price, subtotal: qty * price }]);
-    setNewItem({ serviceId:'', description:'', qty:1, unitPrice:'' });
+    setItems([...items, { ...newItem, qty, unitPrice: price, subtotal: qty * price }]);
+    setNewItem({ serviceId: '', description: '', qty: 1, unitPrice: '' });
   };
 
   const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
@@ -134,269 +89,245 @@ function CreateReceipt() {
     try {
       setSubmitting(true);
       const res = await createReceipt({
-        clientId: selectedClient,
-        items: items.map(i => ({ serviceId: i.serviceId || null, description: i.description, qty: i.qty, unitPrice: i.unitPrice })),
-        paymentMethod, notes,
-        tax: parseFloat(tax) || 0, discount: parseFloat(discount) || 0,
-        subtotal, total,
+        clientId: selectedClient, items: items.map(i => ({ serviceId: i.serviceId || null, description: i.description, qty: i.qty, unitPrice: i.unitPrice })),
+        paymentMethod, notes, tax: parseFloat(tax) || 0, discount: parseFloat(discount) || 0, subtotal, total,
       });
       navigate(`/receipts/${res.data.id}`);
-    } catch (err) {
-      alert('Error creando recibo: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
+    finally { setSubmitting(false); }
   };
 
   const { itemsTotal, subtotal, total } = calcTotals();
   const step = selectedClient ? (items.length > 0 ? 2 : 1) : 0;
 
-  const payIcons = { Efectivo:'💵', Tarjeta:'💳', Transferencia:'🏦', Cheque:'📋' };
+  const payMethods = [
+    { key: 'Efectivo', icon: 'payments' },
+    { key: 'Tarjeta', icon: 'credit_card' },
+    { key: 'Transferencia', icon: 'account_balance' },
+    { key: 'Cheque', icon: 'description' },
+  ];
 
   if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:240 }}>
-      <svg style={{ animation:'spin 0.7s linear infinite' }} width="32" height="32" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" stroke="var(--border)" strokeWidth="3"/>
-        <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round"/>
-      </svg>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240 }}>
+      <span className="material-symbols-outlined" style={{ fontSize: 36, color: 'var(--primary)', animation: 'spin 0.8s linear infinite' }}>autorenew</span>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
   return (
-    <div style={{ maxWidth:680, margin:'0 auto' }} className="space-y-4 pb-10">
+    <>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.25rem' }}>
-        <Link to="/receipts" style={{ color:'var(--text-3)', textDecoration:'none', display:'flex' }}
-          onMouseEnter={e=>e.currentTarget.style.color='var(--text-1)'}
-          onMouseLeave={e=>e.currentTarget.style.color='var(--text-3)'}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </Link>
-        <h2 className="page-title" style={{ fontSize:'1.25rem' }}>Nuevo Recibo</h2>
-      </div>
+      <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: '2rem' }}>
 
-      <StepBar current={step} />
-
-      {/* Step 1 — Client */}
-      <Section number="1" title="Seleccionar Cliente" subtitle="Elige el cliente para este recibo" active={step === 0 || step >= 0}>
-        <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} className="input">
-          <option value="">— Seleccionar cliente —</option>
-          {clients.map(c => (
-            <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>
-          ))}
-        </select>
-        {clients.length === 0 && (
-          <p style={{ fontSize:'0.8rem', color:'var(--text-3)', marginTop:'0.5rem' }}>
-            Sin clientes.{' '}
-            <Link to="/clients" style={{ color:'var(--primary)', fontWeight:600 }}>Agrega uno primero</Link>
-          </p>
-        )}
-      </Section>
-
-      {/* Step 2 — Items */}
-      <Section number="2" title="Agregar Servicios / Productos" subtitle="Añade uno o más ítems al recibo" active={!!selectedClient}>
-        {/* Quick service */}
-        <div style={{ marginBottom:'0.875rem' }}>
-          <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-            Servicio rápido
-          </label>
-          <select value={newItem.serviceId} onChange={e => handleServiceSelect(e.target.value)} className="input" disabled={!selectedClient}>
-            <option value="">— Seleccionar servicio —</option>
-            {services.map(s => <option key={s.id} value={s.id}>{s.name} · {formatCurrency(s.price)}</option>)}
-          </select>
-        </div>
-
-        {/* Manual entry */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 72px 112px 40px', gap:'0.5rem', alignItems:'flex-start' }}>
-          <input
-            type="text" value={newItem.description}
-            onChange={e => setNewItem({...newItem, description:e.target.value})}
-            className="input" placeholder="Descripción del servicio"
-            disabled={!selectedClient}
-            onKeyDown={e => e.key === 'Enter' && addItem()}
-          />
-          <input
-            type="number" value={newItem.qty}
-            onChange={e => setNewItem({...newItem, qty:e.target.value})}
-            className="input" placeholder="Cant" min="1"
-            disabled={!selectedClient}
-          />
-          <input
-            type="number" value={newItem.unitPrice}
-            onChange={e => setNewItem({...newItem, unitPrice:e.target.value})}
-            className="input" placeholder="Precio" min="0" step="0.01"
-            disabled={!selectedClient}
-            onKeyDown={e => e.key === 'Enter' && addItem()}
-          />
-          <button
-            onClick={addItem}
-            disabled={!selectedClient || !newItem.description || !newItem.unitPrice}
-            className="btn-primary"
-            style={{ height:'42px', borderRadius:10, padding:'0 0', fontSize:'1.2rem' }}
-          >
-            +
-          </button>
-        </div>
-
-        {/* Items list */}
-        {items.length > 0 && (
-          <div style={{ marginTop:'1rem', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', overflow:'hidden' }}>
-            <table className="table-base">
-              <thead>
-                <tr>
-                  <th style={{ textAlign:'left', paddingLeft:'0.875rem' }}>Descripción</th>
-                  <th style={{ textAlign:'center', width:'14%' }}>Cant</th>
-                  <th style={{ textAlign:'right', width:'22%' }}>Precio</th>
-                  <th style={{ textAlign:'right', width:'22%' }}>Subtotal</th>
-                  <th style={{ width:'36px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, i) => (
-                  <tr key={i} className="anim-fade-up" style={{ animationDelay:`${i * 40}ms` }}>
-                    <td style={{ paddingLeft:'0.875rem', fontWeight:500, color:'var(--text-1)', fontSize:'0.85rem' }}>{item.description}</td>
-                    <td style={{ textAlign:'center', fontFamily:'var(--font-mono)', color:'var(--text-2)' }}>{item.qty}</td>
-                    <td style={{ textAlign:'right', fontFamily:'var(--font-mono)', color:'var(--text-2)' }}>{formatCurrency(item.unitPrice)}</td>
-                    <td style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, color:'var(--text-1)' }}>{formatCurrency(item.subtotal)}</td>
-                    <td>
-                      <button
-                        onClick={() => removeItem(i)}
-                        style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:'4px 6px', borderRadius:6, transition:'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background='var(--red-bg)'; e.currentTarget.style.color='var(--red)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background='none'; e.currentTarget.style.color='var(--text-3)'; }}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+          <Link to="/receipts" className="icon-btn">
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_back</span>
+          </Link>
+          <div>
+            <h2 className="page-title" style={{ fontSize: '1.25rem' }}>Nuevo Recibo</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)', marginTop: 1 }}>Completa los pasos para generar el recibo</p>
           </div>
-        )}
-      </Section>
+        </div>
 
-      {/* Step 3 — Payment */}
-      <Section number="3" title="Pago y Totales" subtitle="Configura el método de pago y ajustes" active={items.length > 0}>
-        {/* Payment methods */}
-        <div style={{ marginBottom:'1rem' }}>
-          <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.5rem' }}>
-            Método de Pago
-          </label>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'0.5rem' }}>
-            {['Efectivo','Tarjeta','Transferencia','Cheque'].map(m => (
-              <button
-                key={m}
-                onClick={() => setPaymentMethod(m)}
-                style={{
-                  padding:'0.625rem 0.25rem',
-                  borderRadius:'var(--radius-md)',
-                  border: paymentMethod === m ? '2px solid var(--primary)' : '1.5px solid var(--border)',
-                  background: paymentMethod === m ? 'var(--primary-light)' : 'var(--bg-surface)',
-                  color: paymentMethod === m ? 'var(--primary)' : 'var(--text-2)',
-                  fontFamily:'var(--font-sans)',
-                  fontSize:'0.75rem', fontWeight: paymentMethod === m ? 700 : 500,
-                  cursor:'pointer',
-                  transition:'all 0.15s',
-                  display:'flex', flexDirection:'column', alignItems:'center', gap:3,
-                }}
-              >
-                <span style={{ fontSize:'1.1rem' }}>{payIcons[m]}</span>
-                {m}
+        {/* Step track */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '0.75rem 1.5rem', background: 'var(--surface-container-lowest)', borderRadius: '0.5rem', border: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)', boxShadow: 'var(--shadow-sm)' }}>
+          {['Seleccionar Cliente', 'Agregar Ítems', 'Pago & Total'].map((s, i) => {
+            const done   = i < step;
+            const active = i === step;
+            const isLast = i === 2;
+            return (
+              <div key={s} style={{ display: 'flex', alignItems: 'center', flex: isLast ? 0 : 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: done ? 'var(--secondary)' : active ? 'var(--primary)' : 'var(--surface-container)',
+                    color: done || active ? '#fff' : 'var(--on-surface-variant)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.75rem', fontWeight: 800, fontFamily: 'var(--font-headline)',
+                    flexShrink: 0, transition: 'all 0.2s',
+                  }}>
+                    {done
+                      ? <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
+                      : i + 1
+                    }
+                  </div>
+                  <span style={{
+                    fontSize: '0.75rem', fontWeight: active ? 800 : 500,
+                    color: active ? 'var(--primary)' : done ? 'var(--secondary)' : 'var(--on-surface-variant)',
+                    whiteSpace: 'nowrap', fontFamily: active ? 'var(--font-headline)' : 'var(--font-body)',
+                    transition: 'all 0.2s',
+                  }}>
+                    {s}
+                  </span>
+                </div>
+                {!isLast && <div style={{ flex: 1, height: 1.5, background: done ? 'var(--secondary)' : 'var(--outline-variant)', margin: '0 0.75rem', transition: 'background 0.3s' }} />}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Step 1 — Client */}
+        <Section num="1" title="Seleccionar Cliente" sub="Elige el cliente para este recibo" active={step >= 0}>
+          <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} className="input">
+            <option value="">— Seleccionar cliente —</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
+          </select>
+          {clients.length === 0 && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)', marginTop: '0.625rem' }}>
+              Sin clientes. <Link to="/clients" style={{ color: 'var(--secondary)', fontWeight: 700 }}>Agregar uno</Link>
+            </p>
+          )}
+        </Section>
+
+        {/* Step 2 — Items */}
+        <Section num="2" title="Agregar Servicios / Ítems" sub="Añade los servicios o productos al recibo" active={!!selectedClient}>
+          <div style={{ marginBottom: '0.875rem' }}>
+            <FieldLabel>Servicio Rápido</FieldLabel>
+            <select value={newItem.serviceId} onChange={e => handleServiceSelect(e.target.value)} className="input" disabled={!selectedClient}>
+              <option value="">— Seleccionar del catálogo —</option>
+              {services.map(s => <option key={s.id} value={s.id}>{s.name} · {formatCurrency(s.price)}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 110px 44px', gap: '0.5rem', alignItems: 'flex-end', marginBottom: '0.875rem' }}>
+            <div>
+              <FieldLabel>Descripción</FieldLabel>
+              <input type="text" value={newItem.description} onChange={e => setNewItem({ ...newItem, description: e.target.value })}
+                className="input" placeholder="Descripción del servicio" disabled={!selectedClient}
+                onKeyDown={e => e.key === 'Enter' && addItem()} />
+            </div>
+            <div>
+              <FieldLabel>Cant</FieldLabel>
+              <input type="number" value={newItem.qty} onChange={e => setNewItem({ ...newItem, qty: e.target.value })}
+                className="input" placeholder="1" min="1" disabled={!selectedClient} />
+            </div>
+            <div>
+              <FieldLabel>Precio</FieldLabel>
+              <input type="number" value={newItem.unitPrice} onChange={e => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                className="input" placeholder="0.00" min="0" step="0.01" disabled={!selectedClient}
+                onKeyDown={e => e.key === 'Enter' && addItem()} />
+            </div>
+            <button onClick={addItem} disabled={!selectedClient || !newItem.description || !newItem.unitPrice}
+              className="btn-primary" style={{ height: 42, padding: 0, borderRadius: '0.5rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>add</span>
+            </button>
+          </div>
+
+          {items.length > 0 && (
+            <div style={{ borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
+              <table className="table-base">
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th style={{ textAlign: 'center', width: '12%' }}>Cant</th>
+                    <th style={{ textAlign: 'right', width: '22%' }}>Precio</th>
+                    <th style={{ textAlign: 'right', width: '22%' }}>Subtotal</th>
+                    <th style={{ width: 40 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, i) => (
+                    <tr key={i} className="anim-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+                      <td style={{ fontWeight: 600 }}>{item.description}</td>
+                      <td style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--on-surface-variant)' }}>{item.qty}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--on-surface-variant)' }}>{formatCurrency(item.unitPrice)}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(item.subtotal)}</td>
+                      <td>
+                        <button onClick={() => removeItem(i)} className="icon-btn" style={{ color: 'var(--on-surface-variant)' }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--on-surface-variant)'}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+
+        {/* Step 3 — Payment */}
+        <Section num="3" title="Método de Pago & Totales" sub="Configura el pago y ajustes finales" active={items.length > 0}>
+
+          {/* Payment method selector */}
+          <FieldLabel>Método de Pago</FieldLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
+            {payMethods.map(({ key, icon }) => (
+              <button key={key} onClick={() => setPaymentMethod(key)} style={{
+                padding: '0.75rem 0.5rem',
+                borderRadius: '0.5rem',
+                border: paymentMethod === key ? '2px solid var(--primary)' : '1px solid var(--outline-variant)',
+                background: paymentMethod === key ? 'color-mix(in srgb, var(--primary) 8%, transparent)' : 'var(--surface-container-lowest)',
+                color: paymentMethod === key ? 'var(--primary)' : 'var(--on-surface-variant)',
+                cursor: 'pointer', fontFamily: 'var(--font-body)',
+                fontSize: '0.75rem', fontWeight: paymentMethod === key ? 800 : 500,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem',
+                transition: 'all 0.15s',
+                fontFamily: paymentMethod === key ? 'var(--font-headline)' : 'var(--font-body)',
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{icon}</span>
+                {key}
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Discount + Tax */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem', marginBottom:'1rem' }}>
-          <div>
-            <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-              Descuento (RD$)
-            </label>
-            <input type="number" value={discount} onChange={e => setDiscount(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <div>
-            <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-              ITBIS (RD$)
-            </label>
-            <input type="number" value={tax} onChange={e => setTax(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" />
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div style={{ marginBottom:'1.25rem' }}>
-          <label style={{ display:'block', fontSize:'0.7rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--text-3)', marginBottom:'0.375rem' }}>
-            Notas
-          </label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows="2" placeholder="Notas adicionales..." />
-        </div>
-
-        {/* Totals */}
-        {items.length > 0 && (
-          <div style={{
-            background:'var(--bg-subtle)', border:'1px solid var(--border)',
-            borderRadius:'var(--radius-md)', padding:'1rem 1.25rem',
-          }}>
-            {discount > 0 && (
-              <>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.825rem', marginBottom:'0.375rem', color:'var(--text-2)' }}>
-                  <span>Subtotal items</span>
-                  <span style={{ fontFamily:'var(--font-mono)' }}>{formatCurrency(itemsTotal)}</span>
-                </div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.825rem', marginBottom:'0.375rem', color:'var(--red)' }}>
-                  <span>Descuento</span>
-                  <span style={{ fontFamily:'var(--font-mono)' }}>−{formatCurrency(discount)}</span>
-                </div>
-              </>
-            )}
-            {tax > 0 && (
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.825rem', marginBottom:'0.375rem', color:'var(--text-2)' }}>
-                <span>ITBIS</span>
-                <span style={{ fontFamily:'var(--font-mono)' }}>{formatCurrency(tax)}</span>
-              </div>
-            )}
-            <div style={{
-              display:'flex', justifyContent:'space-between',
-              fontSize:'1.25rem', fontWeight:800, letterSpacing:'-0.03em',
-              color:'var(--text-1)',
-              paddingTop:'0.75rem', marginTop:'0.5rem',
-              borderTop:'1.5px solid var(--border-strong)',
-            }}>
-              <span>Total</span>
-              <span style={{ fontFamily:'var(--font-mono)', color:'var(--primary)' }}>{formatCurrency(total)}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div>
+              <FieldLabel>Descuento (RD$)</FieldLabel>
+              <input type="number" value={discount} onChange={e => setDiscount(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div>
+              <FieldLabel>ITBIS (RD$)</FieldLabel>
+              <input type="number" value={tax} onChange={e => setTax(e.target.value)} className="input" min="0" step="0.01" placeholder="0.00" />
             </div>
           </div>
-        )}
-      </Section>
 
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={submitting || !selectedClient || items.length === 0}
-        className="btn-primary w-full"
-        style={{ padding:'0.875rem', fontSize:'0.925rem', borderRadius:'var(--radius-lg)' }}
-      >
-        {submitting
-          ? <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              <svg style={{ animation:'spin 0.7s linear infinite' }} width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3"/>
-                <path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-              Generando Recibo...
-            </span>
-          : <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Generar Recibo
-            </span>
-        }
-      </button>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <FieldLabel>Notas</FieldLabel>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows="2" placeholder="Notas adicionales..." />
+          </div>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
+          {/* Totals summary */}
+          {items.length > 0 && (
+            <div style={{ background: 'var(--primary)', borderRadius: '0.5rem', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {discount > 0 && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--on-primary-container)' }}>
+                    <span>Subtotal ítems</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{formatCurrency(itemsTotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--secondary-container)' }}>
+                    <span>Descuento</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>−{formatCurrency(discount)}</span>
+                  </div>
+                </>
+              )}
+              {tax > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--on-primary-container)' }}>
+                  <span>ITBIS</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{formatCurrency(tax)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.625rem', marginTop: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+                <span style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: '#fff', fontSize: '0.9rem' }}>Total</span>
+                <span style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--secondary-fixed)', fontSize: '1.5rem', letterSpacing: '-0.03em' }}>{formatCurrency(total)}</span>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* Submit */}
+        <button onClick={handleSubmit} disabled={submitting || !selectedClient || items.length === 0}
+          className="btn-primary" style={{ padding: '0.875rem 1rem', fontSize: '0.925rem', borderRadius: '0.5rem' }}>
+          {submitting
+            ? <><span className="material-symbols-outlined" style={{ fontSize: 18, animation: 'spin 0.8s linear infinite' }}>autorenew</span> Generando Recibo...</>
+            : <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>receipt_long</span> Generar Recibo</>
+          }
+        </button>
+      </div>
+    </>
   );
 }
-
-export default CreateReceipt;

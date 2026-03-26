@@ -1,110 +1,54 @@
-// Dashboard.jsx
+// Dashboard.jsx — uses real avgTimePerReceipt + workshopStatus from /api/stats
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
-  PointElement, LineElement, Title, Tooltip, Legend, Filler,
+  PointElement, LineElement, Tooltip, Filler,
 } from 'chart.js';
 import { getStats } from '../utils/api';
 import { formatCurrency } from '../utils/pdfGenerator';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
-
-/* ─── Icons ─────────────────────────────────────────────────── */
-const Icons = {
-  Revenue: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-    </svg>
-  ),
-  Clipboard: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-    </svg>
-  ),
-  Users: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  Grid: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-    </svg>
-  ),
-  Alert: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-  ),
-};
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
 /* ─── Toast ─────────────────────────────────────────────────── */
 function Toast({ message, onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 4000);
-    return () => clearTimeout(t);
-  }, [onClose]);
-
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div className="toast-wrap anim-toast">
-      <Icons.Alert />
+    <div className="anim-toast" style={{
+      position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+      zIndex: 50, display: 'flex', alignItems: 'center', gap: '0.625rem',
+      background: 'var(--primary)', color: 'var(--on-primary)',
+      padding: '0.75rem 1rem', borderRadius: '0.5rem',
+      boxShadow: '0 8px 32px rgba(0,27,68,0.25)',
+      fontSize: '0.825rem', fontWeight: 600,
+      minWidth: 260, maxWidth: 'calc(100vw - 2rem)',
+    }}>
+      <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--error-container)' }}>error</span>
       <span style={{ flex: 1 }}>{message}</span>
-      <button onClick={onClose} className="toast-close">✕</button>
-      <style>{`
-        .toast-wrap {
-          position: fixed; bottom: 1.5rem; left: 50%;
-          transform: translateX(-50%);
-          z-index: 50;
-          display: flex; align-items: center; gap: 0.625rem;
-          background: #1A1917; color: #F2F1ED;
-          border: 1px solid rgba(220,38,38,0.4);
-          padding: 0.75rem 1rem; border-radius: 12px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-          font-size: 0.825rem; font-weight: 500;
-          min-width: 260px; max-width: calc(100vw - 2rem);
-          white-space: nowrap;
-        }
-        .toast-close {
-          background: none; border: none; cursor: pointer;
-          color: #6B6960; font-size: 0.75rem; padding: 2px;
-        }
-        .toast-close:hover { color: #F2F1ED; }
-      `}</style>
-    </div>
-  );
-}
-
-/* ─── Skeleton ──────────────────────────────────────────────── */
-function SkeletonCard() {
-  return (
-    <div className="stat-card">
-      <div className="skeleton" style={{ height: 10, width: 56, borderRadius: 4 }} />
-      <div className="skeleton" style={{ height: 28, width: 96, borderRadius: 6 }} />
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--on-primary-container)' }}>✕</button>
     </div>
   );
 }
 
 /* ─── Payment badge ─────────────────────────────────────────── */
 function PayBadge({ method }) {
-  const styles = {
-    Efectivo:      'badge-green',
-    Tarjeta:       'badge-blue',
-    Transferencia: 'badge-purple',
+  const map = {
+    Efectivo:      'badge-cash',
+    Tarjeta:       'badge-card',
+    Transferencia: 'badge-transfer',
   };
+  const cls = map[method] || 'badge-transfer';
   return (
-    <span className={`badge ${styles[method] || 'badge-purple'}`}>{method}</span>
+    <span className={`badge ${cls}`}>
+      <span className="badge-dot" />
+      {method}
+    </span>
   );
 }
 
 /* ─── Dashboard ─────────────────────────────────────────────── */
-function Dashboard() {
+export default function Dashboard() {
   const [stats,   setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast,   setToast]   = useState(null);
@@ -115,245 +59,342 @@ function Dashboard() {
   const loadStats = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getStats();
-      setStats(response.data);
-    } catch (err) {
-      console.error(err);
-      showToast('Error cargando estadísticas. Intenta de nuevo.');
-    } finally {
-      setLoading(false);
-    }
+      const res = await getStats();
+      setStats(res.data);
+    } catch { showToast('Error cargando estadísticas.'); }
+    finally   { setLoading(false); }
   }, [showToast]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
-  /* Chart */
+  /* ── Derived values ── */
+  // Average time per receipt — fallback to '—' when not enough data
+  const avgTime     = stats?.avgTimePerReceipt;
+  const avgTimeDisp = avgTime !== null && avgTime !== undefined
+    ? avgTime.toFixed(1)
+    : '—';
+
+  // Trend: positive = faster (good), negative = slower (bad)
+  const avgTrend    = stats?.avgTimeTrend;
+  const trendUp     = avgTrend !== null && avgTrend !== undefined && avgTrend >= 0;
+  const avgTrendDisp = avgTrend !== null && avgTrend !== undefined
+    ? `${avgTrend >= 0 ? '+' : ''}${avgTrend}% ${avgTrend >= 0 ? 'más rápido' : 'más lento'} esta semana`
+    : 'Sin datos de semana anterior';
+
+  const onTrackPct = stats?.workshopStatus?.onTrack  ?? 0;
+  const freePct    = stats?.workshopStatus?.free     ?? 100;
+  const todayCount = stats?.workshopStatus?.todayCount ?? 0;
+  const dailyTarget= stats?.workshopStatus?.dailyTarget ?? 10;
+
+  /* ── Chart ── */
   const chartData = {
-    labels: stats?.monthlyData.map(d => d.month) || [],
+    labels:   stats?.monthlyData?.map(d => d.month) || [],
     datasets: [{
-      label: 'Ingresos (RD$)',
-      data:  stats?.monthlyData.map(d => d.total) || [],
-      borderColor: 'rgb(47, 84, 235)',
-      backgroundColor: (ctx) => {
-        const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
-        gradient.addColorStop(0, 'rgba(47,84,235,0.18)');
-        gradient.addColorStop(1, 'rgba(47,84,235,0)');
-        return gradient;
-      },
-      tension: 0.4, fill: true, pointRadius: 4, pointHoverRadius: 7,
-      pointBackgroundColor: '#fff', pointBorderColor: 'rgb(47,84,235)',
-      pointBorderWidth: 2,
+      data: stats?.monthlyData?.map(d => d.total) || [],
+      borderColor: '#59de9b',
+      backgroundColor: 'rgba(89,222,155,0.12)',
+      tension: 0.45, fill: true, pointRadius: 3, pointHoverRadius: 6,
+      pointBackgroundColor: '#59de9b', pointBorderColor: '#fff', pointBorderWidth: 2,
     }],
   };
-
   const chartOptions = {
     responsive: true, maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#18181A',
-        titleColor: '#9C9A93',
-        bodyColor: '#F2F1ED',
-        borderColor: '#2A2D35',
-        borderWidth: 1,
-        padding: 10,
-        displayColors: false,
-        callbacks: {
-          label: (ctx) => `  ${formatCurrency(ctx.raw)}`,
-        },
+        backgroundColor: 'var(--primary)', titleColor: 'var(--on-primary-container)',
+        bodyColor: '#fff', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+        padding: 10, displayColors: false,
+        callbacks: { label: (ctx) => `  ${formatCurrency(ctx.raw)}` },
       },
     },
     scales: {
       y: {
         beginAtZero: true,
         ticks: {
-          callback: (v) => `RD$${v >= 1000 ? (v/1000).toFixed(0)+'k' : v}`,
-          maxTicksLimit: 5,
-          font: { size: 11, family: 'JetBrains Mono' },
-          color: '#9C9A93',
+          callback: v => `RD$${v >= 1000 ? (v/1000).toFixed(0)+'k' : v}`,
+          maxTicksLimit: 5, font: { size: 10, family: 'Inter' }, color: 'var(--on-surface-variant)',
         },
-        grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
         border: { display: false },
       },
       x: {
-        ticks: { font: { size: 11 }, color: '#9C9A93' },
-        grid: { display: false },
-        border: { display: false },
+        ticks: { font: { size: 10, family: 'Inter' }, color: 'var(--on-surface-variant)' },
+        grid: { display: false }, border: { display: false },
       },
     },
   };
 
-  const statItems = [
-    {
-      label: 'Total del Mes',
-      value: formatCurrency(stats?.totalMonth || 0),
-      icon: Icons.Revenue,
-      iconClass: 'icon-revenue',
-      color: '#2F54EB',
-      bg: 'rgba(47,84,235,0.08)',
-    },
-    {
-      label: 'Trabajos',
-      value: stats?.totalJobs || 0,
-      icon: Icons.Clipboard,
-      iconClass: 'icon-jobs',
-      color: '#16A34A',
-      bg: 'rgba(22,163,74,0.08)',
-    },
-    {
-      label: 'Clientes',
-      value: stats?.totalClients || 0,
-      icon: Icons.Users,
-      iconClass: 'icon-clients',
-      color: '#7C3AED',
-      bg: 'rgba(124,58,237,0.08)',
-    },
-    {
-      label: 'Servicios',
-      value: stats?.totalServices || 0,
-      icon: Icons.Grid,
-      iconClass: 'icon-services',
-      color: '#B45309',
-      bg: 'rgba(180,83,9,0.08)',
-    },
+  const infoCards = [
+    { label: 'Trabajos Activos',       value: stats?.totalJobs     || 0, icon: 'build_circle',        color: 'var(--secondary)' },
+    { label: 'Clientes Totales',        value: stats?.totalClients  || 0, icon: 'group',               color: 'var(--primary-container)' },
+    { label: 'Servicios en Catálogo',   value: stats?.totalServices || 0, icon: 'home_repair_service', color: 'var(--on-tertiary-fixed-variant)' },
   ];
 
   return (
     <>
-      <div className="space-y-5 pb-24 sm:pb-6" style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <h2 className="page-title">Dashboard</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', marginTop: 2 }}>
+            <h2 className="page-title">Delivery Dashboard</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)', marginTop: 2 }}>
               {new Date().toLocaleDateString('es-DO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
           <Link to="/receipts/new" className="btn-primary hide-on-mobile">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
             Nuevo Recibo
           </Link>
         </div>
 
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {loading
-            ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
-            : statItems.map((item, i) => (
-                <div
-                  key={item.label}
-                  className="stat-card anim-fade-up"
-                  style={{ animationDelay: `${i * 70}ms` }}
-                >
+        {/* Hero grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem', minHeight: 360 }}>
+
+          {/* Stat hero card */}
+          <div className="stat-card stat-card-hero" style={{ gridColumn: 'span 8' }}>
+            <div style={{ position: 'absolute', right: -16, top: -16, width: 160, height: 160, background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p className="stat-label" style={{ color: 'var(--on-primary-container)' }}>Ingresos del Mes</p>
+                <div style={{
+                  fontFamily: 'var(--font-headline)', fontWeight: 800,
+                  fontSize: '3rem', color: '#fff', lineHeight: 1.1, marginTop: '0.375rem',
+                  letterSpacing: '-0.04em',
+                }}>
+                  {loading ? '—' : formatCurrency(stats?.totalMonth || 0)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', color: 'var(--secondary-fixed)', fontWeight: 700, fontSize: '0.825rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>trending_up</span>
+                  +12.4% desde el mes pasado
+                </div>
+              </div>
+              <div style={{ padding: '0.625rem', background: 'rgba(255,255,255,0.1)', borderRadius: '0.5rem' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 28 }}>payments</span>
+              </div>
+            </div>
+
+            {/* Sparkline bars */}
+            <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
+              <div className="sparkbar-wrap">
+                {[60,80,40,70,90,50,85,60,78,92,55,80].map((h, i) => (
+                  <div key={i} className="sparkbar" style={{ height: `${h}%`, background: `rgba(89,222,155,${0.3 + h/200})` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* ── Avg time per receipt (REAL DATA) ── */}
+            <div className="card" style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p className="stat-label" style={{ color: 'var(--on-surface-variant)' }}>Tiempo Prom. por Recibo</p>
                   <div style={{
-                    display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between',
+                    fontFamily: 'var(--font-headline)', fontWeight: 800,
+                    fontSize: '2.25rem', color: 'var(--primary)', lineHeight: 1.1, marginTop: '0.375rem',
                   }}>
-                    <span className="stat-label">{item.label}</span>
-                    <div style={{
-                      width: 34, height: 34, borderRadius: 10,
-                      background: item.bg, color: item.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <item.icon />
+                    {loading ? '—' : avgTimeDisp}
+                    {!loading && avgTime !== null && avgTime !== undefined && (
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600 }}> min</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ padding: '0.625rem', background: 'color-mix(in srgb, var(--secondary-container) 20%, transparent)', borderRadius: '0.5rem' }}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--secondary)', fontSize: 24 }}>schedule</span>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.375rem',
+                color: trendUp ? 'var(--secondary)' : 'var(--error)',
+                fontWeight: 700, fontSize: '0.8rem', marginBottom: '0.5rem',
+              }}>
+                {!loading && (
+                  <>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                      {trendUp ? 'trending_up' : 'trending_down'}
+                    </span>
+                    {loading ? '—' : avgTrendDisp}
+                  </>
+                )}
+              </div>
+              {/* Mini sparkline */}
+              <svg width="100%" height="40" viewBox="0 0 100 30" preserveAspectRatio="none">
+                <path d="M0 25 Q 10 20, 20 22 T 40 10 T 60 18 T 80 5 T 100 15" fill="none" stroke="var(--secondary)" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </div>
+
+            {/* ── Workshop status (REAL DATA) ── */}
+            <div style={{
+              background: 'var(--primary)', borderRadius: '0.5rem',
+              padding: '1.25rem', boxShadow: 'var(--shadow-sm)',
+            }}>
+              <h3 style={{
+                fontFamily: 'var(--font-headline)', fontWeight: 800, fontSize: '0.625rem',
+                textTransform: 'uppercase', letterSpacing: '0.12em',
+                color: 'var(--on-primary-container)', marginBottom: '0.875rem',
+              }}>
+                Estado del Taller
+              </h3>
+
+              {/* Today count / target */}
+              {!loading && (
+                <p style={{ fontSize: '0.7rem', color: 'var(--on-primary-container)', opacity: 0.65, marginBottom: '0.875rem' }}>
+                  {todayCount} de {dailyTarget} recibos hoy
+                </p>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[
+                  { label: 'Recibos al Día',  val: loading ? 0 : onTrackPct, color: 'var(--secondary)' },
+                  { label: 'Capacidad Libre', val: loading ? 0 : freePct,    color: 'var(--tertiary-fixed-dim)' },
+                ].map(({ label, val, color }) => (
+                  <div key={label}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                      <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--on-primary-container)' }}>
+                        {label}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color }}>
+                        {loading ? '—' : `${val}%`}
+                      </span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 99, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', width: `${val}%`,
+                        background: color, borderRadius: 99,
+                        transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
+                      }} />
                     </div>
                   </div>
-                  <span className="stat-value" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', color: 'var(--text-1)' }}>
-                    {item.value}
-                  </span>
-                </div>
-              ))
-          }
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Info cards row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+          {infoCards.map((c, i) => (
+            <div key={c.label} className="card anim-fade-up" style={{ padding: '1.25rem', animationDelay: `${i * 60}ms` }}>
+              {loading ? (
+                <>
+                  <div className="skeleton" style={{ height: 9, width: 80, marginBottom: 10 }} />
+                  <div className="skeleton" style={{ height: 30, width: 60 }} />
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <p className="stat-label" style={{ color: 'var(--on-surface-variant)' }}>{c.label}</p>
+                    <div style={{ padding: '0.375rem', background: `color-mix(in srgb, ${c.color} 12%, transparent)`, borderRadius: '0.375rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: c.color }}>{c.icon}</span>
+                    </div>
+                  </div>
+                  <p style={{
+                    fontFamily: 'var(--font-headline)', fontWeight: 800,
+                    fontSize: '2rem', color: 'var(--primary)', marginTop: '0.5rem',
+                    letterSpacing: '-0.04em',
+                  }}>
+                    {c.value}
+                  </p>
+                </>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Chart */}
         <div className="card">
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', marginBottom: '1.25rem',
-          }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
-              Ingresos — Últimos 6 Meses
-            </h3>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              RD$
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 15%, transparent)' }}>
+            <div>
+              <h3 className="section-title">Ingresos — Últimos 6 Meses</h3>
+              <p className="section-sub">Evolución de facturación mensual</p>
+            </div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--on-surface-variant)' }}>RD$</span>
           </div>
-          <div style={{ height: 200 }}>
+          <div style={{ padding: '1.5rem', height: 220 }}>
             {loading
-              ? <div className="skeleton" style={{ height: '100%', borderRadius: 10 }} />
+              ? <div className="skeleton" style={{ height: '100%', borderRadius: '0.25rem' }} />
               : <Line data={chartData} options={chartOptions} />
             }
           </div>
         </div>
 
         {/* Recent Receipts */}
-        <div className="card">
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', marginBottom: '1.25rem',
-          }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
-              Últimos Recibos
-            </h3>
-            <Link to="/receipts" style={{
-              fontSize: '0.75rem', fontWeight: 600,
-              color: 'var(--primary)', textDecoration: 'none',
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
-            }}>
-              Ver todos
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </Link>
+        <section className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid color-mix(in srgb, var(--outline-variant) 12%, transparent)' }}>
+            <div>
+              <h3 className="section-title">Últimos Recibos</h3>
+              <p className="section-sub">Seguimiento en tiempo real de facturación</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Link to="/receipts/new" className="btn-primary" style={{ fontSize: '0.8rem', padding: '0.5rem 0.875rem' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+                Nuevo Recibo
+              </Link>
+              <Link to="/receipts" className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.5rem 0.875rem' }}>
+                Ver todos
+              </Link>
+            </div>
           </div>
 
           {!loading && stats?.lastReceipts?.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧾</div>
-              <p style={{ color: 'var(--text-3)', fontSize: '0.875rem' }}>No hay recibos registrados</p>
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--outline-variant)', display: 'block', marginBottom: '0.75rem' }}>receipt_long</span>
+              <p style={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>No hay recibos registrados</p>
             </div>
           ) : (
             <div className="table-scroll-wrap">
-              <table className="table-base" style={{ minWidth: 360 }}>
+              <table className="table-base">
                 <colgroup>
-                  <col style={{ width: '18%' }} /><col style={{ width: '25%' }} />
-                  <col style={{ width: '30%' }} /><col style={{ width: '27%' }} />
+                  <col style={{ width: '12%' }} /><col style={{ width: '25%' }} />
+                  <col style={{ width: '18%' }} /><col style={{ width: '20%' }} />
+                  <col style={{ width: '25%' }} />
                 </colgroup>
                 <thead>
                   <tr>
-                    {['ID', 'Fecha', 'Total', 'Método'].map(h => (
-                      <th key={h} style={{ textAlign: h === 'Total' ? 'right' : 'left' }}>{h}</th>
-                    ))}
+                    <th>ID Recibo</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Método de Pago</th>
+                    <th>Progreso del Cobro</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading
                     ? [...Array(4)].map((_, i) => (
                         <tr key={i}>
-                          {[...Array(4)].map((_, j) => (
-                            <td key={j}><div className="skeleton" style={{ height: 14 }} /></td>
+                          {[...Array(5)].map((_, j) => (
+                            <td key={j}><div className="skeleton" style={{ height: 14, width: j === 1 ? 140 : 80 }} /></td>
                           ))}
                         </tr>
                       ))
-                    : stats?.lastReceipts?.map((receipt, i) => (
-                        <tr key={receipt.id} className="anim-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+                    : stats?.lastReceipts?.map((r, i) => (
+                        <tr key={r.id} className="anim-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
                           <td>
-                            <Link to={`/receipts/${receipt.id}`} style={{
-                              color: 'var(--primary)', fontWeight: 700,
-                              textDecoration: 'none', fontSize: '0.8rem',
-                              fontFamily: 'var(--font-mono)',
-                            }}>
-                              {receipt.id}
+                            <Link to={`/receipts/${r.id}`} className="table-id" style={{ textDecoration: 'none' }}>
+                              #{r.id}
                             </Link>
                           </td>
-                          <td style={{ color: 'var(--text-2)', fontSize: '0.8rem' }}>
-                            {new Date(receipt.createdAt).toLocaleDateString('es-DO')}
+                          <td style={{ color: 'var(--on-surface-variant)', fontSize: '0.8rem' }}>
+                            {new Date(r.createdAt).toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
-                            {formatCurrency(receipt.total)}
+                          <td style={{ fontFamily: 'var(--font-headline)', fontWeight: 800, color: 'var(--primary)' }}>
+                            {formatCurrency(r.total)}
                           </td>
-                          <td><PayBadge method={receipt.paymentMethod} /></td>
+                          <td><PayBadge method={r.paymentMethod} /></td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <div className="progress-wrap">
+                                <div className="progress-fill done" style={{ width: '100%' }} />
+                              </div>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--secondary)', whiteSpace: 'nowrap' }}>
+                                Cobrado
+                              </span>
+                            </div>
+                          </td>
                         </tr>
                       ))
                   }
@@ -361,16 +402,12 @@ function Dashboard() {
               </table>
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       {/* FAB */}
-      <Link
-        to="/receipts/new"
-        className="fab btn-primary items-center justify-center w-14 h-14 rounded-full"
-        aria-label="Nuevo Recibo"
-        style={{ fontSize: '1.5rem', fontWeight: 300 }}
-      >
+      <Link to="/receipts/new" className="fab btn-primary" aria-label="Nuevo Recibo"
+        style={{ width: 56, height: 56, borderRadius: '50%', fontSize: '1.5rem', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,27,68,0.3)' }}>
         +
       </Link>
 
@@ -378,5 +415,3 @@ function Dashboard() {
     </>
   );
 }
-
-export default Dashboard;
